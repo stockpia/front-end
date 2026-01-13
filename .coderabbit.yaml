@@ -1,0 +1,14 @@
+# CodeRabbit 기본 설정
+language: "ko-KR"
+
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  review_status: true
+
+auto_review:
+  enabled: true
+  drafts: false
+
+chat:
+  auto_reply: true
