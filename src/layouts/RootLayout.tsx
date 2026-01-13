@@ -5,7 +5,7 @@ export function RootLayout({ children }: PropsWithChildren) {
     <div className="min-h-svh bg-gray-50">
       <div
         className="
-          mx-auto min-h-svh w-full max-w-[480px]
+          mx-auto min-h-svh w-full max-w-120
           bg-white
           px-5
           pt-[env(safe-area-inset-top)]
