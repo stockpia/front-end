@@ -1,9 +1,10 @@
 import { RootLayout } from "@/layouts/RootLayout";
+import AppRouter from "@/router/AppRouter";
 
 export default function App() {
 	return (
 		<RootLayout>
-			<div className="py-6">Hello</div>
+			<AppRouter />
 		</RootLayout>
 	);
 }
