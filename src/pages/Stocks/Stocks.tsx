@@ -3,6 +3,7 @@ import ChartPanel, { type ChartRange, type ChartType } from "@/components/ChartP
 import {
   fetchStockChart,
   fetchStocksList,
+  fetchStockWatchlist,
   type StockChartRange,
   type StockChartType,
 } from "@/lib/api/stocks";
@@ -55,6 +56,7 @@ export default function Stocks() {
   const [chartType, setChartType] = useState<ChartType>("candlestick");
   const [sortBy, setSortBy] = useState<StockSort>("change_rate");
   const [allStocks, setAllStocks] = useState<StockItem[]>([]);
+  const [watchlistStocks, setWatchlistStocks] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
@@ -94,8 +96,12 @@ export default function Stocks() {
       }));
     }
 
+    if (activeTab === "watchlist") {
+      return watchlistStocks;
+    }
+
     return allStocks;
-  }, [activeTab, allStocks]);
+  }, [activeTab, allStocks, watchlistStocks]);
 
   const sortedStocks = useMemo(() => {
     if (activeTab !== "holding") {
@@ -136,16 +142,25 @@ export default function Stocks() {
     setIsLoading(true);
     setError(null);
 
-    fetchStocksList(
-      {
-        market: "ALL",
-        sort,
-        order: "desc",
-      },
-      controller.signal,
-    )
+    const request =
+      activeTab === "watchlist"
+        ? fetchStockWatchlist("demo_user", controller.signal)
+        : fetchStocksList(
+            {
+              market: "ALL",
+              sort,
+              order: "desc",
+            },
+            controller.signal,
+          );
+
+    request
       .then((response) => {
-        setAllStocks(response.stocks ?? []);
+        if (activeTab === "watchlist") {
+          setWatchlistStocks(response.stocks ?? []);
+        } else {
+          setAllStocks(response.stocks ?? []);
+        }
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) {
