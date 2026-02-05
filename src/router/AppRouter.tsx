@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Home from "@/pages/Home/Home";
+import Stocks from "@/pages/Stocks/Stocks";
 import StockDetail from "@/pages/StockDetail/StockDetail";
 import TradeDetail from "@/pages/TradeDetail/TradeDetail";
 
@@ -8,7 +8,7 @@ export default function AppRouter() {
     <BrowserRouter>
       <Routes>
         {/* 1. 홈 */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Stocks />} />
 
         {/* 2. 종목 상세 */}
         <Route path="/stocks/:stockId" element={<StockDetail />} />
