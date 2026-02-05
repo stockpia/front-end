@@ -63,13 +63,10 @@ export default function Stocks() {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab === "holding") {
-      setSortBy("eval_amount");
-    } else {
-      setSortBy("change_rate");
-    }
-  }, [activeTab]);
+  const handleTabChange = (nextTab: StockTab) => {
+    setActiveTab(nextTab);
+    setSortBy(nextTab === "holding" ? "eval_amount" : "change_rate");
+  };
 
   const displayedStocks = useMemo<StockItem[]>(() => {
     if (activeTab === "holding") {
@@ -305,7 +302,7 @@ export default function Stocks() {
           }}
         />
         <div className="mt-6">
-          <StocksTab value={activeTab} onChange={setActiveTab} />
+          <StocksTab value={activeTab} onChange={handleTabChange} />
         </div>
         <div className="mt-6">
           <StocksList
