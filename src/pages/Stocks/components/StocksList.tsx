@@ -9,7 +9,13 @@ type StockItem = {
 	profit_rate?: number;
 };
 
-type StockSort = "price" | "change_rate" | "volume" | "eval_amount" | "profit_rate" | "quantity";
+type StockSort =
+	| "price"
+	| "change_rate"
+	| "volume"
+	| "eval_amount"
+	| "profit_rate"
+	| "name";
 
 type StocksListProps = {
 	title: string;

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import ChartPanel, { type ChartRange, type ChartType } from "@/components/ChartPanel";
 import {
+  fetchHoldings,
   fetchStockChart,
   fetchStocksList,
   fetchStockWatchlist,
+  type HoldingsStock,
   type StockChartRange,
   type StockChartType,
 } from "@/lib/api/stocks";
@@ -13,29 +15,6 @@ import StocksList, {
   type StockSort,
 } from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
-import holdingsResponse from "@/pages/Stocks/mock/holdings.json";
-
-type HoldingsStock = {
-  ticker: string;
-  name: string;
-  quantity: number;
-  avg_price: number;
-  current_price: number;
-  eval_amount: number;
-  profit_amount: number;
-  profit_rate: number;
-};
-
-type HoldingsApiResponse = {
-  count: number;
-  total_eval_amount: number;
-  total_profit_amount: number;
-  stocks: HoldingsStock[];
-};
-
-const HOLDINGS_RESPONSE = holdingsResponse as HoldingsApiResponse;
-
-const HOLDINGS = HOLDINGS_RESPONSE.stocks;
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
   { value: "price", label: "주가순" },
@@ -46,7 +25,7 @@ const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 const HOLDING_SORT_OPTIONS: { value: StockSort; label: string }[] = [
   { value: "eval_amount", label: "평가금액순" },
   { value: "profit_rate", label: "수익률순" },
-  { value: "quantity", label: "보유량순" },
+  { value: "name", label: "종목명순" },
 ];
 
 export default function Stocks() {
@@ -57,6 +36,7 @@ export default function Stocks() {
   const [sortBy, setSortBy] = useState<StockSort>("change_rate");
   const [allStocks, setAllStocks] = useState<StockItem[]>([]);
   const [watchlistStocks, setWatchlistStocks] = useState<StockItem[]>([]);
+  const [holdings, setHoldings] = useState<HoldingsStock[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
@@ -84,7 +64,7 @@ export default function Stocks() {
 
   const displayedStocks = useMemo<StockItem[]>(() => {
     if (activeTab === "holding") {
-      return HOLDINGS.map((stock) => ({
+      return holdings.map((stock) => ({
         ticker: stock.ticker,
         name: stock.name,
         current_price: stock.current_price,
@@ -101,7 +81,7 @@ export default function Stocks() {
     }
 
     return allStocks;
-  }, [activeTab, allStocks, watchlistStocks]);
+  }, [activeTab, allStocks, holdings, watchlistStocks]);
 
   const sortedStocks = useMemo(() => {
     if (activeTab !== "holding") {
@@ -122,45 +102,87 @@ export default function Stocks() {
         return sorted.sort(
           (a, b) => (b.profit_rate ?? 0) - (a.profit_rate ?? 0),
         );
-      case "quantity":
-        return sorted.sort((a, b) => (b.quantity ?? 0) - (a.quantity ?? 0));
+      case "name":
+        return sorted.sort((a, b) => a.name.localeCompare(b.name, "ko"));
       default:
         return sorted.sort((a, b) => b.current_price - a.current_price);
     }
   }, [activeTab, displayedStocks, sortBy]);
 
   useEffect(() => {
-    if (activeTab === "holding") {
-      return;
-    }
-
     const controller = new AbortController();
-    const sort = ["price", "change_rate", "volume"].includes(sortBy)
+    const listSort = ["price", "change_rate", "volume"].includes(sortBy)
       ? (sortBy as "price" | "change_rate" | "volume")
       : "change_rate";
 
     setIsLoading(true);
     setError(null);
 
-    const request =
-      activeTab === "watchlist"
-        ? fetchStockWatchlist("demo_user", controller.signal)
-        : fetchStocksList(
-            {
-              market: "ALL",
-              sort,
-              order: "desc",
-            },
-            controller.signal,
-          );
+    if (activeTab === "holding") {
+      fetchHoldings(
+        {
+          sort:
+            sortBy === "profit_rate" || sortBy === "name"
+              ? (sortBy as "profit_rate" | "name")
+              : "eval_amount",
+          order: "desc",
+        },
+        controller.signal,
+      )
+        .then((response) => {
+          setHoldings(response.stocks ?? []);
+        })
+        .catch((err: unknown) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          const message =
+            err instanceof Error
+              ? err.message
+              : "알 수 없는 오류가 발생했습니다.";
+          setError(message);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setIsLoading(false);
+          }
+        });
+      return () => controller.abort();
+    }
 
-    request
-      .then((response) => {
-        if (activeTab === "watchlist") {
+    if (activeTab === "watchlist") {
+      fetchStockWatchlist("demo_user", controller.signal)
+        .then((response) => {
           setWatchlistStocks(response.stocks ?? []);
-        } else {
-          setAllStocks(response.stocks ?? []);
-        }
+        })
+        .catch((err: unknown) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          const message =
+            err instanceof Error
+              ? err.message
+              : "알 수 없는 오류가 발생했습니다.";
+          setError(message);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setIsLoading(false);
+          }
+        });
+      return () => controller.abort();
+    }
+
+    fetchStocksList(
+      {
+        market: "ALL",
+        sort: listSort,
+        order: "desc",
+      },
+      controller.signal,
+    )
+      .then((response) => {
+        setAllStocks(response.stocks ?? []);
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) {
@@ -265,8 +287,8 @@ export default function Stocks() {
                 : STOCK_SORT_OPTIONS
             }
             metaLabel={activeTab === "holding" ? "보유량" : "거래량"}
-            isLoading={activeTab !== "holding" && isLoading}
-            error={activeTab !== "holding" ? error : null}
+            isLoading={isLoading}
+            error={error}
           />
         </div>
       </section>
