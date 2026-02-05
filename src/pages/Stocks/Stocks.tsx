@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ChartPanel, {
   type ChartRange,
   type ChartType,
@@ -34,6 +35,9 @@ const HOLDING_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 export default function Stocks() {
   const [activeTab, setActiveTab] = useState<StockTab>("all");
   const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
+  const [userSelectedTicker, setUserSelectedTicker] = useState<string | null>(
+    null,
+  );
   const [range, setRange] = useState<ChartRange>("1d");
   const [chartType, setChartType] = useState<ChartType>("candlestick");
   const [sortBy, setSortBy] = useState<StockSort>("change_rate");
@@ -46,6 +50,7 @@ export default function Stocks() {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartPlotly, setChartPlotly] = useState<unknown | null>(null);
+  const navigate = useNavigate();
 
   const listTitle = useMemo(() => {
     switch (activeTab) {
@@ -237,6 +242,7 @@ export default function Stocks() {
       );
       return stillExists ? prev : sortedStocks[0];
     });
+    setUserSelectedTicker(null);
   }, [sortedStocks]);
 
   const effectiveSelectedStock = selectedStock ?? sortedStocks[0] ?? null;
@@ -306,7 +312,18 @@ export default function Stocks() {
             title={listTitle}
             items={sortedStocks}
             selectedId={effectiveSelectedStock?.ticker ?? ""}
-            onSelect={(item) => setSelectedStock(item)}
+            onSelect={(item) => {
+              if (
+                item.ticker === effectiveSelectedStock?.ticker &&
+                userSelectedTicker === item.ticker
+              ) {
+                const nameParam = encodeURIComponent(item.name);
+                navigate(`/stocks/${item.ticker}?name=${nameParam}`);
+                return;
+              }
+              setSelectedStock(item);
+              setUserSelectedTicker(item.ticker);
+            }}
             sortBy={sortBy}
             onSortChange={setSortBy}
             sortOptions={
