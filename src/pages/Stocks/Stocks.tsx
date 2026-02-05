@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import ChartPanel, { type ChartRange, type ChartType } from "@/components/ChartPanel";
+import ChartPanel, {
+  type ChartRange,
+  type ChartType,
+} from "@/components/ChartPanel";
 import {
   fetchHoldings,
   fetchStockChart,
@@ -34,6 +37,7 @@ export default function Stocks() {
   const [range, setRange] = useState<ChartRange>("1d");
   const [chartType, setChartType] = useState<ChartType>("candlestick");
   const [sortBy, setSortBy] = useState<StockSort>("change_rate");
+  const [searchTerm, setSearchTerm] = useState("");
   const [allStocks, setAllStocks] = useState<StockItem[]>([]);
   const [watchlistStocks, setWatchlistStocks] = useState<StockItem[]>([]);
   const [holdings, setHoldings] = useState<HoldingsStock[]>([]);
@@ -83,12 +87,29 @@ export default function Stocks() {
     return allStocks;
   }, [activeTab, allStocks, holdings, watchlistStocks]);
 
-  const sortedStocks = useMemo(() => {
-    if (activeTab !== "holding") {
+  const normalizedSearchTerm = useMemo(
+    () => searchTerm.trim().toLowerCase(),
+    [searchTerm],
+  );
+
+  const filteredStocks = useMemo(() => {
+    if (!normalizedSearchTerm) {
       return displayedStocks;
     }
 
-    const sorted = [...displayedStocks];
+    return displayedStocks.filter((stock) => {
+      const name = stock.name.toLowerCase();
+      const ticker = stock.ticker.toLowerCase();
+      return name === normalizedSearchTerm || ticker === normalizedSearchTerm;
+    });
+  }, [displayedStocks, normalizedSearchTerm]);
+
+  const sortedStocks = useMemo(() => {
+    if (activeTab !== "holding") {
+      return filteredStocks;
+    }
+
+    const sorted = [...filteredStocks];
     switch (sortBy) {
       case "change_rate":
         return sorted.sort((a, b) => b.change_rate - a.change_rate);
@@ -107,7 +128,7 @@ export default function Stocks() {
       default:
         return sorted.sort((a, b) => b.current_price - a.current_price);
     }
-  }, [activeTab, displayedStocks, sortBy]);
+  }, [activeTab, filteredStocks, sortBy]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -269,7 +290,14 @@ export default function Stocks() {
   return (
     <div className="space-y-8 py-8">
       <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
-        <SearchBar />
+        <SearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          onSubmit={() => {
+            const normalized = searchTerm.trim();
+            setSearchTerm(normalized);
+          }}
+        />
         <div className="mt-6">
           <StocksTab value={activeTab} onChange={setActiveTab} />
         </div>
@@ -289,6 +317,7 @@ export default function Stocks() {
             metaLabel={activeTab === "holding" ? "보유량" : "거래량"}
             isLoading={isLoading}
             error={error}
+            emptyLabel={normalizedSearchTerm ? "없는 종목입니다." : undefined}
           />
         </div>
       </section>
