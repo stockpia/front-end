@@ -1,3 +1,5 @@
+import LoadingSpinner from "@/components/LoadingSpinner";
+
 type StockItem = {
   ticker: string;
   name: string;
@@ -69,63 +71,68 @@ export default function StocksList({
           })}
         </div>
       </div>
-      {isLoading && (
-        <p className="mt-4 text-xs font-semibold text-slate-400">
-          목록을 불러오는 중...
-        </p>
+      {isLoading ? (
+        <div className="mt-4 flex justify-center">
+          <LoadingSpinner label="목록을 불러오는 중..." size="sm" />
+        </div>
+      ) : (
+        <>
+          {error && (
+            <p className="mt-4 text-xs font-semibold text-rose-500">
+              목록을 불러오지 못했습니다. {error}
+            </p>
+          )}
+          {!error && items.length === 0 && (
+            <p className="mt-4 text-xs font-semibold text-slate-400">
+              {emptyLabel}
+            </p>
+          )}
+          {!error && items.length > 0 && (
+            <ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
+              {items.map((item) => {
+                const isActive = item.ticker === selectedId;
+                const isPositive = item.change_rate >= 0;
+                return (
+                  <li key={item.ticker}>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(item)}
+                      className={
+                        "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition " +
+                        (isActive
+                          ? "border-slate-900 bg-slate-900/5"
+                          : "border-slate-200 bg-white hover:border-slate-300")
+                      }>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-slate-400">{item.ticker}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {item.current_price.toLocaleString()}원
+                        </p>
+                        <p
+                          className={
+                            "text-xs font-semibold " +
+                            (isPositive ? "text-rose-500" : "text-blue-500")
+                          }>
+                          {isPositive ? "+" : ""}
+                          {item.change_rate.toFixed(2)}%
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {metaLabel} {item.volume.toLocaleString()}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
-      {!isLoading && error && (
-        <p className="mt-4 text-xs font-semibold text-rose-500">
-          목록을 불러오지 못했습니다. {error}
-        </p>
-      )}
-      {!isLoading && !error && items.length === 0 && (
-        <p className="mt-4 text-xs font-semibold text-slate-400">
-          {emptyLabel}
-        </p>
-      )}
-      <ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
-        {items.map((item) => {
-          const isActive = item.ticker === selectedId;
-          const isPositive = item.change_rate >= 0;
-          return (
-            <li key={item.ticker}>
-              <button
-                type="button"
-                onClick={() => onSelect(item)}
-                className={
-                  "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition " +
-                  (isActive
-                    ? "border-slate-900 bg-slate-900/5"
-                    : "border-slate-200 bg-white hover:border-slate-300")
-                }>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-slate-400">{item.ticker}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item.current_price.toLocaleString()}원
-                  </p>
-                  <p
-                    className={
-                      "text-xs font-semibold " +
-                      (isPositive ? "text-rose-500" : "text-blue-500")
-                    }>
-                    {isPositive ? "+" : ""}
-                    {item.change_rate.toFixed(2)}%
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    {metaLabel} {item.volume.toLocaleString()}
-                  </p>
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }

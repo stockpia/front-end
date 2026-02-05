@@ -1,6 +1,7 @@
 import Plotly from "plotly.js-dist-min";
 import { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -145,9 +146,7 @@ function ChartRenderer({ loading, error, plotlyJson }: ChartRendererProps) {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
-        <div className="text-sm font-medium text-slate-400">
-          차트 로딩 중...
-        </div>
+        <LoadingSpinner label="차트 로딩 중..." />
       </div>
     );
   }
