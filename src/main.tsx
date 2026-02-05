@@ -8,14 +8,14 @@ import "./index.css";
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {
-  throw new Error("Root element '#root' not found");
+	throw new Error("Root element '#root' not found");
 }
 
 createRoot(rootEl).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
-    </QueryClientProvider>
-  </StrictMode>
+	<StrictMode>
+		<QueryClientProvider client={queryClient}>
+			<App />
+			{import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+		</QueryClientProvider>
+	</StrictMode>,
 );
