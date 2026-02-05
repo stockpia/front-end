@@ -20,6 +20,8 @@ type StocksListProps = {
 	onSortChange: (sortBy: StockSort) => void;
 	sortOptions: { value: StockSort; label: string }[];
 	metaLabel?: string;
+	isLoading?: boolean;
+	error?: string | null;
 };
 
 export default function StocksList({
@@ -31,6 +33,8 @@ export default function StocksList({
 	onSortChange,
 	sortOptions,
 	metaLabel = "거래량",
+	isLoading = false,
+	error = null,
 }: StocksListProps) {
 	return (
 		<div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -56,7 +60,22 @@ export default function StocksList({
 					})}
 				</div>
 			</div>
-			<ul className="mt-4 space-y-3">
+			{isLoading && (
+				<p className="mt-4 text-xs font-semibold text-slate-400">
+					목록을 불러오는 중...
+				</p>
+			)}
+			{!isLoading && error && (
+				<p className="mt-4 text-xs font-semibold text-rose-500">
+					목록을 불러오지 못했습니다. {error}
+				</p>
+			)}
+			{!isLoading && !error && items.length === 0 && (
+				<p className="mt-4 text-xs font-semibold text-slate-400">
+					표시할 종목이 없습니다.
+				</p>
+			)}
+			<ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
 				{items.map((item) => {
 					const isActive = item.ticker === selectedId;
 					const isPositive = item.change_rate >= 0;

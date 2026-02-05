@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
 import ChartPanel, { type ChartRange } from "@/components/ChartPanel";
+import { fetchStocksList } from "@/lib/api/stocks";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList, {
   type StockItem,
@@ -7,17 +7,8 @@ import StocksList, {
 } from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
 import holdingsResponse from "@/pages/Stocks/mock/holdings.json";
-import stocksResponse from "@/pages/Stocks/mock/stocks.json";
 import chartResponse from "@/pages/Stocks/mock/chart.json";
-
-type StocksApiResponse = {
-  date: string;
-  market: string;
-  sort_by: string;
-  order: string;
-  count: number;
-  stocks: StockItem[];
-};
+import { useEffect, useMemo, useState } from "react";
 
 type HoldingsStock = {
   ticker: string;
@@ -48,11 +39,9 @@ type ChartApiResponse = {
   };
 };
 
-const STOCKS_RESPONSE = stocksResponse as StocksApiResponse;
 const HOLDINGS_RESPONSE = holdingsResponse as HoldingsApiResponse;
 const CHART_RESPONSE = chartResponse as ChartApiResponse;
 
-const STOCKS = STOCKS_RESPONSE.stocks;
 const HOLDINGS = HOLDINGS_RESPONSE.stocks;
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
@@ -69,9 +58,12 @@ const HOLDING_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 
 export default function Stocks() {
   const [activeTab, setActiveTab] = useState<StockTab>("all");
-  const [selectedStock, setSelectedStock] = useState<StockItem>(STOCKS[0]);
+  const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
   const [range, setRange] = useState<ChartRange>("1d");
-  const [sortBy, setSortBy] = useState<StockSort>("price");
+  const [sortBy, setSortBy] = useState<StockSort>("change_rate");
+  const [allStocks, setAllStocks] = useState<StockItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const listTitle = useMemo(() => {
     switch (activeTab) {
@@ -88,7 +80,7 @@ export default function Stocks() {
     if (activeTab === "holding") {
       setSortBy("eval_amount");
     } else {
-      setSortBy("price");
+      setSortBy("change_rate");
     }
   }, [activeTab]);
 
@@ -106,10 +98,14 @@ export default function Stocks() {
       }));
     }
 
-    return STOCKS;
-  }, [activeTab]);
+    return allStocks;
+  }, [activeTab, allStocks]);
 
   const sortedStocks = useMemo(() => {
+    if (activeTab !== "holding") {
+      return displayedStocks;
+    }
+
     const sorted = [...displayedStocks];
     switch (sortBy) {
       case "change_rate":
@@ -129,9 +125,67 @@ export default function Stocks() {
       default:
         return sorted.sort((a, b) => b.current_price - a.current_price);
     }
-  }, [displayedStocks, sortBy]);
+  }, [activeTab, displayedStocks, sortBy]);
 
-  const effectiveSelectedStock = selectedStock ?? sortedStocks[0];
+  useEffect(() => {
+    if (activeTab === "holding") {
+      return;
+    }
+
+    const controller = new AbortController();
+    const sort = ["price", "change_rate", "volume"].includes(sortBy)
+      ? (sortBy as "price" | "change_rate" | "volume")
+      : "change_rate";
+
+    setIsLoading(true);
+    setError(null);
+
+    fetchStocksList(
+      {
+        market: "ALL",
+        sort,
+        order: "desc",
+      },
+      controller.signal,
+    )
+      .then((response) => {
+        setAllStocks(response.stocks ?? []);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : "알 수 없는 오류가 발생했습니다.";
+        setError(message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [activeTab, sortBy]);
+
+  useEffect(() => {
+    setSelectedStock((prev) => {
+      if (sortedStocks.length === 0) {
+        return null;
+      }
+      if (!prev) {
+        return sortedStocks[0];
+      }
+      const stillExists = sortedStocks.some(
+        (item) => item.ticker === prev.ticker,
+      );
+      return stillExists ? prev : sortedStocks[0];
+    });
+  }, [sortedStocks]);
+
+  const effectiveSelectedStock = selectedStock ?? sortedStocks[0] ?? null;
 
   return (
     <div className="space-y-8 py-8">
@@ -144,7 +198,7 @@ export default function Stocks() {
           <StocksList
             title={listTitle}
             items={sortedStocks}
-            selectedId={effectiveSelectedStock.ticker}
+            selectedId={effectiveSelectedStock?.ticker ?? ""}
             onSelect={(item) => setSelectedStock(item)}
             sortBy={sortBy}
             onSortChange={setSortBy}
@@ -154,18 +208,31 @@ export default function Stocks() {
                 : STOCK_SORT_OPTIONS
             }
             metaLabel={activeTab === "holding" ? "보유량" : "거래량"}
+            isLoading={activeTab !== "holding" && isLoading}
+            error={activeTab !== "holding" ? error : null}
           />
         </div>
       </section>
 
-      <ChartPanel
-        symbol={`${effectiveSelectedStock.name} (${effectiveSelectedStock.ticker})`}
-        range={range}
-        onRangeChange={setRange}
-        loading={false}
-        error={null}
-        plotlyJson={CHART_RESPONSE.plotly}
-      />
+      {effectiveSelectedStock ? (
+        <ChartPanel
+          symbol={`${effectiveSelectedStock.name} (${effectiveSelectedStock.ticker})`}
+          range={range}
+          onRangeChange={setRange}
+          loading={false}
+          error={null}
+          plotlyJson={CHART_RESPONSE.plotly}
+        />
+      ) : (
+        <ChartPanel
+          symbol="선택된 종목"
+          range={range}
+          onRangeChange={setRange}
+          loading={false}
+          error={null}
+          plotlyJson={null}
+        />
+      )}
     </div>
   );
 }
