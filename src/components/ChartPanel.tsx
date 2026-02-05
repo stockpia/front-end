@@ -13,10 +13,21 @@ const RANGE_OPTIONS = [
 
 export type ChartRange = (typeof RANGE_OPTIONS)[number]["id"];
 
+const TYPE_OPTIONS = [
+  { id: "candlestick", label: "캔들" },
+  { id: "technical", label: "기술" },
+  { id: "volume", label: "거래량" },
+  { id: "line", label: "라인" },
+] as const;
+
+export type ChartType = (typeof TYPE_OPTIONS)[number]["id"];
+
 export type ChartPanelProps = {
   symbol: string;
   range: ChartRange;
   onRangeChange: (range: ChartRange) => void;
+  type: ChartType;
+  onTypeChange: (type: ChartType) => void;
   loading?: boolean;
   error?: string | null;
   plotlyJson?: unknown | null;
@@ -26,6 +37,8 @@ export default function ChartPanel({
   symbol,
   range,
   onRangeChange,
+  type,
+  onTypeChange,
   loading = false,
   error = null,
   plotlyJson = null,
@@ -37,7 +50,7 @@ export default function ChartPanel({
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             Selected
@@ -47,7 +60,10 @@ export default function ChartPanel({
           </h2>
           <p className="text-sm text-slate-500">{rangeLabel} 기준</p>
         </div>
-        <RangeTabs value={range} onChange={onRangeChange} />
+        <div className="flex flex-wrap items-center gap-3">
+          <TypeTabs value={type} onChange={onTypeChange} />
+          <RangeTabs value={range} onChange={onRangeChange} />
+        </div>
       </header>
 
       <div className="mt-6">
@@ -77,6 +93,35 @@ function RangeTabs({ value, onChange }: RangeTabsProps) {
             type="button"
             className={
               "rounded-full px-4 py-2 text-sm font-semibold transition " +
+              (isActive
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-900")
+            }
+            onClick={() => onChange(option.id)}>
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type TypeTabsProps = {
+  value: ChartType;
+  onChange: (type: ChartType) => void;
+};
+
+function TypeTabs({ value, onChange }: TypeTabsProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white p-1">
+      {TYPE_OPTIONS.map((option) => {
+        const isActive = option.id === value;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            className={
+              "rounded-full px-3 py-2 text-xs font-semibold transition " +
               (isActive
                 ? "bg-slate-900 text-white shadow-sm"
                 : "text-slate-500 hover:text-slate-900")

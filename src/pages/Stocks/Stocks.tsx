@@ -1,5 +1,11 @@
-import ChartPanel, { type ChartRange } from "@/components/ChartPanel";
-import { fetchStocksList } from "@/lib/api/stocks";
+import { useEffect, useMemo, useState } from "react";
+import ChartPanel, { type ChartRange, type ChartType } from "@/components/ChartPanel";
+import {
+  fetchStockChart,
+  fetchStocksList,
+  type StockChartRange,
+  type StockChartType,
+} from "@/lib/api/stocks";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList, {
   type StockItem,
@@ -7,8 +13,6 @@ import StocksList, {
 } from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
 import holdingsResponse from "@/pages/Stocks/mock/holdings.json";
-import chartResponse from "@/pages/Stocks/mock/chart.json";
-import { useEffect, useMemo, useState } from "react";
 
 type HoldingsStock = {
   ticker: string;
@@ -28,19 +32,7 @@ type HoldingsApiResponse = {
   stocks: HoldingsStock[];
 };
 
-type ChartApiResponse = {
-  symbol: string;
-  range: ChartRange;
-  type: string;
-  plotly: string | object;
-  meta: {
-    ma: number[];
-    generatedAt: string;
-  };
-};
-
 const HOLDINGS_RESPONSE = holdingsResponse as HoldingsApiResponse;
-const CHART_RESPONSE = chartResponse as ChartApiResponse;
 
 const HOLDINGS = HOLDINGS_RESPONSE.stocks;
 
@@ -60,10 +52,14 @@ export default function Stocks() {
   const [activeTab, setActiveTab] = useState<StockTab>("all");
   const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
   const [range, setRange] = useState<ChartRange>("1d");
+  const [chartType, setChartType] = useState<ChartType>("candlestick");
   const [sortBy, setSortBy] = useState<StockSort>("change_rate");
   const [allStocks, setAllStocks] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
+  const [chartPlotly, setChartPlotly] = useState<unknown | null>(null);
 
   const listTitle = useMemo(() => {
     switch (activeTab) {
@@ -186,6 +182,52 @@ export default function Stocks() {
   }, [sortedStocks]);
 
   const effectiveSelectedStock = selectedStock ?? sortedStocks[0] ?? null;
+  const selectedSymbol = effectiveSelectedStock?.ticker ?? null;
+
+  useEffect(() => {
+    if (!selectedSymbol) {
+      setChartPlotly(null);
+      setChartError(null);
+      setChartLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const chartRange = range as StockChartRange;
+    const type = chartType as StockChartType;
+
+    setChartLoading(true);
+    setChartError(null);
+
+    fetchStockChart(
+      selectedSymbol,
+      {
+        range: chartRange,
+        type,
+      },
+      controller.signal,
+    )
+      .then((response) => {
+        setChartPlotly(response.plotly ?? null);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : "알 수 없는 오류가 발생했습니다.";
+        setChartError(message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setChartLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedSymbol, range, chartType]);
 
   return (
     <div className="space-y-8 py-8">
@@ -219,18 +261,22 @@ export default function Stocks() {
           symbol={`${effectiveSelectedStock.name} (${effectiveSelectedStock.ticker})`}
           range={range}
           onRangeChange={setRange}
-          loading={false}
-          error={null}
-          plotlyJson={CHART_RESPONSE.plotly}
+          type={chartType}
+          onTypeChange={setChartType}
+          loading={chartLoading}
+          error={chartError}
+          plotlyJson={chartPlotly}
         />
       ) : (
         <ChartPanel
           symbol="선택된 종목"
           range={range}
           onRangeChange={setRange}
-          loading={false}
-          error={null}
-          plotlyJson={null}
+          type={chartType}
+          onTypeChange={setChartType}
+          loading={chartLoading}
+          error={chartError}
+          plotlyJson={chartPlotly}
         />
       )}
     </div>
