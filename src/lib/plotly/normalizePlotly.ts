@@ -40,7 +40,20 @@ function normalizeVolume(figure: PlotlyFigure): PlotlyFigure {
 }
 
 function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
-  return figure;
+  const nextLayout = normalizeCandlestickLayout(figure.layout);
+  const nextData = normalizeLineData(figure.data ?? []);
+  const extremeAnnotations = buildCandlestickExtremes(nextData);
+  if (extremeAnnotations) {
+    const existing = Array.isArray(nextLayout?.annotations)
+      ? nextLayout?.annotations
+      : [];
+    nextLayout.annotations = [...existing, ...extremeAnnotations];
+  }
+  return {
+    ...figure,
+    data: nextData,
+    layout: nextLayout,
+  };
 }
 
 function normalizeCandlestickLike(
@@ -150,6 +163,25 @@ function normalizeCandlestickData(data: unknown[]): unknown[] {
   });
 }
 
+function normalizeLineData(data: unknown[]): unknown[] {
+  return data.map((trace) => {
+    if (!trace || typeof trace !== "object") {
+      return trace;
+    }
+    const typedTrace = trace as Record<string, unknown>;
+    const type = typeof typedTrace.type === "string" ? typedTrace.type : "";
+    if (type && type !== "scatter" && type !== "line" && type !== "scattergl") {
+      return trace;
+    }
+
+    return {
+      ...typedTrace,
+      fill: "none",
+      fillcolor: undefined,
+    };
+  });
+}
+
 function buildCandlestickExtremes(data: unknown[]) {
   const candle = data.find((trace) => {
     if (!trace || typeof trace !== "object") {
@@ -158,31 +190,95 @@ function buildCandlestickExtremes(data: unknown[]) {
     return (trace as Record<string, unknown>).type === "candlestick";
   }) as Record<string, unknown> | undefined;
 
-  if (!candle) {
+  if (candle) {
+    const lows = toNumberArray(candle.low);
+    const highs = toNumberArray(candle.high);
+    const xs = toArray(candle.x);
+
+    if (!lows.length || !highs.length) {
+      return null;
+    }
+
+    const minValue = Math.min(...lows);
+    const maxValue = Math.max(...highs);
+    const minIndex = lows.indexOf(minValue);
+    const maxIndex = highs.indexOf(maxValue);
+
+    const minX = xs[minIndex] ?? minIndex;
+    const maxX = xs[maxIndex] ?? maxIndex;
+
+    return buildExtremesAnnotations({
+      minValue,
+      maxValue,
+      minIndex,
+      maxIndex,
+      minX,
+      maxX,
+      totalPoints: xs.length || highs.length,
+    });
+  }
+
+  const line = data.find((trace) => {
+    if (!trace || typeof trace !== "object") {
+      return false;
+    }
+    const typed = trace as Record<string, unknown>;
+    const type = typeof typed.type === "string" ? typed.type : "";
+    if (type && type !== "scatter" && type !== "line" && type !== "scattergl") {
+      return false;
+    }
+    return Array.isArray(typed.y);
+  }) as Record<string, unknown> | undefined;
+
+  if (!line) {
     return null;
   }
 
-  const lows = toNumberArray(candle.low);
-  const highs = toNumberArray(candle.high);
-  const xs = toArray(candle.x);
+  const ys = toNumberArray(line.y);
+  const xs = toArray(line.x);
 
-  if (!lows.length || !highs.length) {
+  if (!ys.length) {
     return null;
   }
 
-  const minValue = Math.min(...lows);
-  const maxValue = Math.max(...highs);
-  const minIndex = lows.indexOf(minValue);
-  const maxIndex = highs.indexOf(maxValue);
+  const minValue = Math.min(...ys);
+  const maxValue = Math.max(...ys);
+  const minIndex = ys.indexOf(minValue);
+  const maxIndex = ys.indexOf(maxValue);
 
   const minX = xs[minIndex] ?? minIndex;
   const maxX = xs[maxIndex] ?? maxIndex;
 
-  const totalPoints = xs.length;
+  return buildExtremesAnnotations({
+    minValue,
+    maxValue,
+    minIndex,
+    maxIndex,
+    minX,
+    maxX,
+    totalPoints: xs.length || ys.length,
+  });
+}
+
+function buildExtremesAnnotations({
+  minValue,
+  maxValue,
+  minIndex,
+  maxIndex,
+  minX,
+  maxX,
+  totalPoints,
+}: {
+  minValue: number;
+  maxValue: number;
+  minIndex: number;
+  maxIndex: number;
+  minX: unknown;
+  maxX: unknown;
+  totalPoints: number;
+}) {
   const threshold = 0.4;
-
   const isMinNearRight = minIndex > totalPoints * (1 - threshold);
-
   const isMaxNearRight = maxIndex > totalPoints * (1 - threshold);
 
   return [
