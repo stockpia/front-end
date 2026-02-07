@@ -2,7 +2,9 @@ import Plotly from "plotly.js-dist-min";
 import { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import normalizePlotly, { type PlotlyFigure } from "@/lib/plotly/normalizePlotly";
+import normalizePlotly, {
+  type PlotlyFigure,
+} from "@/lib/plotly/normalizePlotly";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -145,7 +147,12 @@ type ChartRendererProps = {
   chartType: ChartType;
 };
 
-function ChartRenderer({ loading, error, plotlyJson, chartType }: ChartRendererProps) {
+function ChartRenderer({
+  loading,
+  error,
+  plotlyJson,
+  chartType,
+}: ChartRendererProps) {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
@@ -207,6 +214,14 @@ function ChartRenderer({ loading, error, plotlyJson, chartType }: ChartRendererP
 
   return (
     <div className="h-95 rounded-2xl border border-slate-200 bg-white">
+      {chartType === "candlestick" && (
+        <div className="legend ml-3 mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+          <span>이동평균선</span>
+          <span style={{ color: "#FF9500" }}>5</span>
+          <span style={{ color: "#34C759" }}>20</span>
+          <span style={{ color: "#AF52DE" }}>60</span>
+        </div>
+      )}
       <Plot
         data={normalizedPlotly.data}
         layout={{

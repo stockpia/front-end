@@ -88,6 +88,7 @@ function normalizeCandlestickLayout(
   }
 
   const nextLayout: Record<string, unknown> = { ...layout };
+  nextLayout.showlegend = false;
   const axisKeys = Object.keys(nextLayout).filter((key) =>
     /^xaxis\d*$/.test(key),
   );
