@@ -2,6 +2,7 @@ import Plotly from "plotly.js-dist-min";
 import { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import normalizePlotly, { type PlotlyFigure } from "@/lib/plotly/normalizePlotly";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -72,6 +73,7 @@ export default function ChartPanel({
           loading={loading}
           error={error}
           plotlyJson={plotlyJson}
+          chartType={type}
         />
       </div>
     </section>
@@ -140,9 +142,10 @@ type ChartRendererProps = {
   loading: boolean;
   error: string | null;
   plotlyJson: unknown | null;
+  chartType: ChartType;
 };
 
-function ChartRenderer({ loading, error, plotlyJson }: ChartRendererProps) {
+function ChartRenderer({ loading, error, plotlyJson, chartType }: ChartRendererProps) {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
@@ -178,10 +181,7 @@ function ChartRenderer({ loading, error, plotlyJson }: ChartRendererProps) {
   const parsedPlotly =
     typeof plotlyJson === "string"
       ? safeParsePlotly(plotlyJson)
-      : (plotlyJson as {
-          data?: unknown[];
-          layout?: Record<string, unknown>;
-        } | null);
+      : (plotlyJson as PlotlyFigure | null);
 
   if (!parsedPlotly?.data) {
     return (
@@ -193,19 +193,34 @@ function ChartRenderer({ loading, error, plotlyJson }: ChartRendererProps) {
     );
   }
 
+  // Debug: inspect raw plotly payload from server before any normalization.
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.info("[ChartPanel] Raw Plotly JS", plotlyJson);
+    // eslint-disable-next-line no-console
+    console.info("[ChartPanel] Raw Plotly parsed", parsedPlotly);
+  }
+
+  const normalizedPlotly = normalizePlotly(parsedPlotly, {
+    chartType,
+  });
+
   return (
     <div className="h-95 rounded-2xl border border-slate-200 bg-white">
       <Plot
-        data={parsedPlotly.data}
+        data={normalizedPlotly.data}
         layout={{
-          ...parsedPlotly.layout,
+          ...(normalizedPlotly.layout ?? {}),
           autosize: true,
           margin: {
             l: 40,
             r: 24,
             t: 24,
             b: 56,
-            ...(parsedPlotly.layout?.margin ?? {}),
+            ...((normalizedPlotly.layout?.margin ?? {}) as Record<
+              string,
+              unknown
+            >),
           },
         }}
         config={{ responsive: true, displayModeBar: false }}
