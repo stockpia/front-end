@@ -1,23 +1,5 @@
 import LoadingSpinner from "@/components/LoadingSpinner";
-
-type StockItem = {
-  ticker: string;
-  name: string;
-  current_price: number;
-  change_rate: number;
-  volume: number;
-  quantity?: number;
-  eval_amount?: number;
-  profit_rate?: number;
-};
-
-type StockSort =
-  | "price"
-  | "change_rate"
-  | "volume"
-  | "eval_amount"
-  | "profit_rate"
-  | "name";
+import type { StockItem, StockSort } from "@/types/stocks";
 
 type StocksListProps = {
   title: string;

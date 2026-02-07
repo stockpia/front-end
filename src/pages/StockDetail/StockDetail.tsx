@@ -4,11 +4,9 @@ import ChartPanel, {
   type ChartRange,
   type ChartType,
 } from "@/components/ChartPanel";
-import {
-  fetchStockChart,
-  type StockChartRange,
-  type StockChartType,
-} from "@/lib/api/stocks";
+import { fetchStockChart } from "@/lib/api/stocks";
+import type { StockChartRange, StockChartType } from "@/types/stocks";
+import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
 
 export default function StockDetail() {
   const { stockId } = useParams();
@@ -28,7 +26,6 @@ export default function StockDetail() {
   }, [searchParams, stockId]);
 
   const isHolding = false;
-
   useEffect(() => {
     if (!stockId) {
       setChartPlotly(null);
@@ -99,11 +96,7 @@ export default function StockDetail() {
         </section>
       )}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-        <h3 className="text-lg font-semibold text-slate-900">
-          커뮤니티 / 뉴스
-        </h3>
-      </section>
+      <CommunityNewsSection />
     </div>
   );
 }

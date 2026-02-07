@@ -10,14 +10,15 @@ import {
   fetchStocksList,
   fetchStockWatchlist,
   type HoldingsStock,
-  type StockChartRange,
-  type StockChartType,
 } from "@/lib/api/stocks";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
-import StocksList, {
-  type StockItem,
-  type StockSort,
-} from "@/pages/Stocks/components/StocksList";
+import StocksList from "@/pages/Stocks/components/StocksList";
+import type {
+  StockChartRange,
+  StockChartType,
+  StockItem,
+  StockSort,
+} from "@/types/stocks";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
