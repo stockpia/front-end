@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChartPanel, {
   type ChartRange,
   type ChartType,
@@ -9,6 +9,7 @@ import type { StockChartRange, StockChartType } from "@/types/stocks";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
 
 export default function StockDetail() {
+  const navigate = useNavigate();
   const { stockId } = useParams();
   const [searchParams] = useSearchParams();
   const [range, setRange] = useState<ChartRange>("1d");
@@ -25,7 +26,7 @@ export default function StockDetail() {
     return stockId ? stockId : "선택된 종목";
   }, [searchParams, stockId]);
 
-  const isHolding = false;
+  const isHolding = true;
   useEffect(() => {
     if (!stockId) {
       setChartPlotly(null);
@@ -90,9 +91,17 @@ export default function StockDetail() {
 
       {isHolding && (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-          <h3 className="text-lg font-semibold text-slate-900">
-            물타기 계산기
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-slate-900">
+              물타기 계산기
+            </h3>
+            <button
+              type="button"
+              onClick={() => navigate("/averaging-calculator")}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800">
+              계산기 열기
+            </button>
+          </div>
         </section>
       )}
 
