@@ -9,6 +9,7 @@ import type {
   StocksOrder,
 } from "@/types/stocks";
 import type {
+  StockCommunityLatestResponse,
   StockCommunityResponse,
   StockNewsResponse,
 } from "@/types/stockCommunityNews";
@@ -108,6 +109,21 @@ export async function fetchStockCommunity(
 ) {
   const { data } = await api.get<StockCommunityResponse>(
     `/api/web/stocks/${symbol}/community`,
+    {
+      params,
+      signal,
+    },
+  );
+  return data;
+}
+
+export async function fetchStockCommunityLatest(
+  symbol: string,
+  params: { since: string },
+  signal?: AbortSignal,
+) {
+  const { data } = await api.get<StockCommunityLatestResponse>(
+    `/api/web/stocks/${symbol}/community/latest`,
     {
       params,
       signal,

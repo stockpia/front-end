@@ -27,6 +27,13 @@ export type StockCommunityResponse = {
 	new_count: number;
 };
 
+export type StockCommunityLatestResponse = {
+	symbol: string;
+	items: StockCommunityItem[];
+	new_count: number;
+	fetched_at: string;
+};
+
 export type StockNewsTab = "news";
 
 export type StockNewsItem = {

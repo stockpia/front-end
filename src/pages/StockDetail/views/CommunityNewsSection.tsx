@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { fetchStockCommunity, fetchStockNews } from "@/lib/api/stocks";
+import {
+  fetchStockCommunity,
+  fetchStockCommunityLatest,
+  fetchStockNews,
+} from "@/lib/api/stocks";
+import type { StockCommunityResponse } from "@/types/stockCommunityNews";
+
+const COMMUNITY_LATEST_POLL_INTERVAL_MS = 10_000;
 
 type CommunityNewsSectionProps = {
   symbol?: string;
@@ -10,6 +21,7 @@ type CommunityNewsSectionProps = {
 export default function CommunityNewsSection({
   symbol,
 }: CommunityNewsSectionProps) {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"community" | "news">("community");
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollPositionsRef = useRef({ community: 0, news: 0 });
@@ -109,6 +121,96 @@ export default function CommunityNewsSection({
     newsError instanceof Error
       ? newsError.message
       : "뉴스를 불러오는 중 오류가 발생했습니다.";
+
+  const latestCommunitySince = useMemo(() => {
+    if (communityItems.length === 0) {
+      return communityFirstPage?.fetched_at ?? null;
+    }
+
+    return communityItems.reduce((latest, item) => {
+      if (!latest || item.published_at > latest) {
+        return item.published_at;
+      }
+      return latest;
+    }, "" as string);
+  }, [communityItems, communityFirstPage]);
+
+  useEffect(() => {
+    if (
+      activeTab !== "community" ||
+      !symbol ||
+      !latestCommunitySince ||
+      !communityFirstPage
+    ) {
+      return;
+    }
+
+    const pollLatest = async () => {
+      const latestResponse = await fetchStockCommunityLatest(symbol, {
+        since: latestCommunitySince,
+      });
+
+      if (latestResponse.items.length === 0) {
+        return;
+      }
+
+      queryClient.setQueryData<InfiniteData<StockCommunityResponse>>(
+        ["stock-community", symbol],
+        (prev) => {
+          if (!prev || prev.pages.length === 0) {
+            return prev;
+          }
+
+          const existingIds = new Set(
+            prev.pages.flatMap((page) => page.items.map((item) => item.id)),
+          );
+          const incomingItems = latestResponse.items.filter(
+            (item) => !existingIds.has(item.id),
+          );
+
+          if (incomingItems.length === 0) {
+            return prev;
+          }
+
+          const firstPage = prev.pages[0];
+          const nextFirstPage: StockCommunityResponse = {
+            ...firstPage,
+            items: [...incomingItems, ...firstPage.items],
+            total_count: firstPage.total_count + incomingItems.length,
+            new_count:
+              typeof latestResponse.new_count === "number"
+                ? latestResponse.new_count
+                : firstPage.new_count + incomingItems.length,
+            fetched_at: latestResponse.fetched_at || firstPage.fetched_at,
+          };
+
+          return {
+            ...prev,
+            pages: [nextFirstPage, ...prev.pages.slice(1)],
+          };
+        },
+      );
+    };
+
+    void pollLatest().catch(() => {
+      // Ignore polling errors and continue with the next interval.
+    });
+    const intervalId = window.setInterval(() => {
+      void pollLatest().catch(() => {
+        // Ignore polling errors and continue with the next interval.
+      });
+    }, COMMUNITY_LATEST_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    activeTab,
+    symbol,
+    latestCommunitySince,
+    communityFirstPage,
+    queryClient,
+  ]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
