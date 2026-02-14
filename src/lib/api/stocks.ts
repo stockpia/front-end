@@ -8,6 +8,7 @@ import type {
   StocksListResponse,
   StocksOrder,
 } from "@/types/stocks";
+import type { StockNewsResponse } from "@/types/stockCommunityNews";
 
 export type HoldingsSort = "eval_amount" | "profit_rate" | "name";
 
@@ -79,5 +80,20 @@ export async function fetchHoldings(
     params,
     signal,
   });
+  return data;
+}
+
+export async function fetchStockNews(
+  symbol: string,
+  params?: { cursor?: string; limit?: number },
+  signal?: AbortSignal,
+) {
+  const { data } = await api.get<StockNewsResponse>(
+    `/api/web/stocks/${symbol}/news`,
+    {
+      params,
+      signal,
+    },
+  );
   return data;
 }

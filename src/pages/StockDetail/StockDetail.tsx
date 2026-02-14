@@ -105,7 +105,7 @@ export default function StockDetail() {
         </section>
       )}
 
-      <CommunityNewsSection />
+      <CommunityNewsSection symbol={stockId} />
     </div>
   );
 }

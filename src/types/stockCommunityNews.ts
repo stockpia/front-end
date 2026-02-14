@@ -46,6 +46,7 @@ export type StockNewsResponse = {
 	limit: number;
 	total_count: number;
 	has_more: boolean;
+	next_cursor?: string | null;
 	items: StockNewsItem[];
 	fetched_at: string;
 };

@@ -1,13 +1,67 @@
-import { useEffect, useRef, useState } from "react";
-import { stockCommunityMock, stockNewsMock } from "@/mocks/stockDetail";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { fetchStockNews } from "@/lib/api/stocks";
+import { stockCommunityMock } from "@/mocks/stockDetail";
 
-export default function CommunityNewsSection() {
+type CommunityNewsSectionProps = {
+  symbol?: string;
+};
+
+export default function CommunityNewsSection({ symbol }: CommunityNewsSectionProps) {
   const [activeTab, setActiveTab] = useState<"community" | "news">("community");
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollPositionsRef = useRef({ community: 0, news: 0 });
 
   const communitySummary = stockCommunityMock;
-  const newsSummary = stockNewsMock;
+
+  const {
+    data: newsData,
+    isLoading: newsLoading,
+    isError: isNewsError,
+    error: newsError,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["stock-news", symbol],
+    enabled: activeTab === "news" && Boolean(symbol),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      fetchStockNews(symbol as string, { cursor: pageParam, limit: 20 }),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.has_more) {
+        return undefined;
+      }
+
+      if (lastPage.next_cursor) {
+        return lastPage.next_cursor;
+      }
+
+      const fallbackCursor = lastPage.items[lastPage.items.length - 1]?.id;
+      return fallbackCursor;
+    },
+  });
+
+  const newsPages = newsData?.pages ?? [];
+  const newsSummary = newsPages[newsPages.length - 1] ?? null;
+  const newsItems = useMemo(() => {
+    const seen = new Set<string>();
+    return newsPages.flatMap((page) =>
+      page.items.filter((item) => {
+        if (seen.has(item.id)) {
+          return false;
+        }
+        seen.add(item.id);
+        return true;
+      }),
+    );
+  }, [newsPages]);
+
+  const newsErrorMessage =
+    newsError instanceof Error
+      ? newsError.message
+      : "뉴스를 불러오는 중 오류가 발생했습니다.";
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -117,14 +171,32 @@ export default function CommunityNewsSection() {
 
       {activeTab === "news" && (
         <div className="mt-6 space-y-4">
+          {newsLoading && (
+            <div className="flex justify-center py-4">
+              <LoadingSpinner label="뉴스 불러오는 중..." />
+            </div>
+          )}
+          {isNewsError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {newsErrorMessage}
+            </div>
+          )}
           <div
             ref={scrollContainerRef}
             onScroll={(event) => {
               const element = event.currentTarget;
               scrollPositionsRef.current[activeTab] = element.scrollTop;
+
+              if (
+                hasNextPage &&
+                !isFetchingNextPage &&
+                element.scrollHeight - element.scrollTop - element.clientHeight < 40
+              ) {
+                void fetchNextPage();
+              }
             }}
             className="max-h-80 space-y-3 overflow-y-auto pr-1">
-            {newsSummary.items.map((item) => (
+            {newsItems.map((item) => (
               <article
                 key={item.id}
                 className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -143,18 +215,32 @@ export default function CommunityNewsSection() {
                 <p className="mt-2 text-sm text-slate-600 line-clamp-2">
                   {item.content}
                 </p>
-                <button
-                  type="button"
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
                   className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800">
                   원문 보기
-                </button>
+                </a>
               </article>
             ))}
+            {isFetchingNextPage && (
+              <div className="flex justify-center py-2">
+                <LoadingSpinner label="뉴스 더 불러오는 중..." size="sm" />
+              </div>
+            )}
+            {!newsLoading && !isNewsError && newsItems.length === 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                표시할 뉴스가 없습니다.
+              </div>
+            )}
           </div>
-          <div className="text-xs text-slate-400">
-            {newsSummary.company_name} · {newsSummary.symbol} ·{" "}
-            {newsSummary.fetched_at}
-          </div>
+          {newsSummary && (
+            <div className="text-xs text-slate-400">
+              {newsSummary.company_name} · {newsSummary.symbol} ·{" "}
+              {newsSummary.fetched_at}
+            </div>
+          )}
         </div>
       )}
     </section>
