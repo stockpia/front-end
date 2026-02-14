@@ -20,7 +20,7 @@ export type ChartRange = (typeof RANGE_OPTIONS)[number]["id"];
 const TYPE_OPTIONS = [
   { id: "candlestick", label: "캔들" },
   { id: "technical", label: "기술" },
-  { id: "volume", label: "거래량" },
+  // { id: "volume", label: "거래량" },
   { id: "line", label: "라인" },
 ] as const;
 

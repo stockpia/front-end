@@ -23,7 +23,7 @@ import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
   { value: "price", label: "주가순" },
-  { value: "change_rate", label: "등락률순" },
+  { value: "change_rate", label: "상승률순" },
   { value: "volume", label: "거래량순" },
 ];
 

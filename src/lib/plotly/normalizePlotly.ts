@@ -36,7 +36,96 @@ function normalizeTechnical(figure: PlotlyFigure): PlotlyFigure {
 }
 
 function normalizeVolume(figure: PlotlyFigure): PlotlyFigure {
+  if (!figure.data || !Array.isArray(figure.data)) {
+    return figure;
+  }
+
+  // 거래량 데이터 찾기
+  const volumeTrace = figure.data.find((trace) => {
+    if (!trace || typeof trace !== "object") {
+      return false;
+    }
+    const typed = trace as Record<string, unknown>;
+    return typed.type === "bar" || typed.name === "거래량";
+  }) as Record<string, unknown> | undefined;
+
+  if (!volumeTrace) {
+    return figure;
+  }
+
+  const xs = toArray(volumeTrace.x);
+  const ys = toNumberArray(volumeTrace.y);
+
+  // 데이터 포인트가 200개 이상이면 주봉으로 변환
+  if (xs.length >= 80) {
+    const weeklyData = convertToWeeklyVolume(xs, ys, volumeTrace);
+    return {
+      ...figure,
+      data: figure.data.map((trace) => {
+        if (trace === volumeTrace) {
+          return weeklyData;
+        }
+        return trace;
+      }),
+    };
+  }
+
   return figure;
+}
+
+function convertToWeeklyVolume(
+  dates: unknown[],
+  volumes: number[],
+  originalTrace: Record<string, unknown>,
+): Record<string, unknown> {
+  const weeklyMap = new Map<
+    string,
+    { volume: number; color: string; date: string }
+  >();
+
+  dates.forEach((date, index) => {
+    const dateStr = String(date);
+    const volume = volumes[index] || 0;
+
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    const weekKey = monday.toISOString().split("T")[0];
+
+    if (!weeklyMap.has(weekKey)) {
+      weeklyMap.set(weekKey, {
+        volume: 0,
+        color: "",
+        date: weekKey,
+      });
+    }
+
+    const weekData = weeklyMap.get(weekKey)!;
+    weekData.volume += volume;
+
+    const colors = Array.isArray(originalTrace.marker)
+      ? (originalTrace.marker as any).color
+      : (originalTrace.marker as Record<string, unknown>)?.color;
+
+    if (Array.isArray(colors) && colors[index]) {
+      weekData.color = colors[index];
+    }
+  });
+
+  const weeklyArray = Array.from(weeklyMap.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+
+  return {
+    ...originalTrace,
+    x: weeklyArray.map((w) => w.date),
+    y: weeklyArray.map((w) => w.volume),
+    marker: {
+      ...(typeof originalTrace.marker === "object" ? originalTrace.marker : {}),
+      color: weeklyArray.map((w) => w.color || "#94a3b8"),
+    },
+  };
 }
 
 function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
