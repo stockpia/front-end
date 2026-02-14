@@ -20,6 +20,7 @@ export type StockCommunityResponse = {
 	limit: number;
 	total_count: number;
 	has_more: boolean;
+	next_cursor?: string | null;
 	ai_summary?: string;
 	items: StockCommunityItem[];
 	fetched_at: string;

@@ -1,28 +1,54 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { fetchStockNews } from "@/lib/api/stocks";
-import { stockCommunityMock } from "@/mocks/stockDetail";
+import { fetchStockCommunity, fetchStockNews } from "@/lib/api/stocks";
 
 type CommunityNewsSectionProps = {
   symbol?: string;
 };
 
-export default function CommunityNewsSection({ symbol }: CommunityNewsSectionProps) {
+export default function CommunityNewsSection({
+  symbol,
+}: CommunityNewsSectionProps) {
   const [activeTab, setActiveTab] = useState<"community" | "news">("community");
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollPositionsRef = useRef({ community: 0, news: 0 });
 
-  const communitySummary = stockCommunityMock;
+  const {
+    data: communityData,
+    isLoading: communityLoading,
+    isError: isCommunityError,
+    error: communityError,
+    hasNextPage: hasNextCommunityPage,
+    isFetchingNextPage: isFetchingNextCommunityPage,
+    fetchNextPage: fetchNextCommunityPage,
+  } = useInfiniteQuery({
+    queryKey: ["stock-community", symbol],
+    enabled: activeTab === "community" && Boolean(symbol),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      fetchStockCommunity(symbol as string, { cursor: pageParam, limit: 20 }),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.has_more) {
+        return undefined;
+      }
+
+      if (lastPage.next_cursor) {
+        return lastPage.next_cursor;
+      }
+
+      return lastPage.items[lastPage.items.length - 1]?.id;
+    },
+  });
 
   const {
     data: newsData,
     isLoading: newsLoading,
     isError: isNewsError,
     error: newsError,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
+    hasNextPage: hasNextNewsPage,
+    isFetchingNextPage: isFetchingNextNewsPage,
+    fetchNextPage: fetchNextNewsPage,
   } = useInfiniteQuery({
     queryKey: ["stock-news", symbol],
     enabled: activeTab === "news" && Boolean(symbol),
@@ -38,13 +64,29 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
         return lastPage.next_cursor;
       }
 
-      const fallbackCursor = lastPage.items[lastPage.items.length - 1]?.id;
-      return fallbackCursor;
+      return lastPage.items[lastPage.items.length - 1]?.id;
     },
   });
 
+  const communityPages = communityData?.pages ?? [];
+  const communityFirstPage = communityPages[0] ?? null;
+  const communityLastPage = communityPages[communityPages.length - 1] ?? null;
+  const communityItems = useMemo(() => {
+    const seen = new Set<string>();
+    return communityPages.flatMap((page) =>
+      page.items.filter((item) => {
+        if (seen.has(item.id)) {
+          return false;
+        }
+        seen.add(item.id);
+        return true;
+      }),
+    );
+  }, [communityPages]);
+
   const newsPages = newsData?.pages ?? [];
-  const newsSummary = newsPages[newsPages.length - 1] ?? null;
+  const newsFirstPage = newsPages[0] ?? null;
+  const newsLastPage = newsPages[newsPages.length - 1] ?? null;
   const newsItems = useMemo(() => {
     const seen = new Set<string>();
     return newsPages.flatMap((page) =>
@@ -57,6 +99,11 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
       }),
     );
   }, [newsPages]);
+
+  const communityErrorMessage =
+    communityError instanceof Error
+      ? communityError.message
+      : "커뮤니티를 불러오는 중 오류가 발생했습니다.";
 
   const newsErrorMessage =
     newsError instanceof Error
@@ -84,6 +131,28 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
       scrollPositionsRef.current[activeTab] = container.scrollTop;
     }
     setActiveTab(nextTab);
+  };
+
+  const handleScroll = (element: HTMLDivElement) => {
+    scrollPositionsRef.current[activeTab] = element.scrollTop;
+
+    if (
+      activeTab === "community" &&
+      hasNextCommunityPage &&
+      !isFetchingNextCommunityPage &&
+      element.scrollHeight - element.scrollTop - element.clientHeight < 40
+    ) {
+      void fetchNextCommunityPage();
+    }
+
+    if (
+      activeTab === "news" &&
+      hasNextNewsPage &&
+      !isFetchingNextNewsPage &&
+      element.scrollHeight - element.scrollTop - element.clientHeight < 40
+    ) {
+      void fetchNextNewsPage();
+    }
   };
 
   return (
@@ -118,24 +187,31 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
 
       {activeTab === "community" && (
         <div className="mt-6 space-y-4">
-          {communitySummary.ai_summary && (
+          {communityLoading && (
+            <div className="flex justify-center py-4">
+              <LoadingSpinner label="커뮤니티 불러오는 중..." />
+            </div>
+          )}
+          {isCommunityError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {communityErrorMessage}
+            </div>
+          )}
+          {communityFirstPage?.ai_summary && (
             <article className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="text-xs font-semibold text-slate-500">
                 AI 요약
               </div>
               <p className="mt-2 text-sm text-slate-800">
-                {communitySummary.ai_summary}
+                {communityFirstPage.ai_summary}
               </p>
             </article>
           )}
           <div
             ref={scrollContainerRef}
-            onScroll={(event) => {
-              const element = event.currentTarget;
-              scrollPositionsRef.current[activeTab] = element.scrollTop;
-            }}
+            onScroll={(event) => handleScroll(event.currentTarget)}
             className="max-h-80 space-y-3 overflow-y-auto pr-1">
-            {communitySummary.items.map((item) => (
+            {communityItems.map((item) => (
               <article
                 key={item.id}
                 className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -154,18 +230,35 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
                 <p className="mt-2 text-sm text-slate-600 line-clamp-2">
                   {item.content}
                 </p>
-                <button
-                  type="button"
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
                   className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800">
                   원문 보기
-                </button>
+                </a>
               </article>
             ))}
+            {isFetchingNextCommunityPage && (
+              <div className="flex justify-center py-2">
+                <LoadingSpinner label="커뮤니티 더 불러오는 중..." size="sm" />
+              </div>
+            )}
+            {!communityLoading &&
+              !isCommunityError &&
+              communityItems.length === 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  표시할 커뮤니티 글이 없습니다.
+                </div>
+              )}
           </div>
-          <div className="text-xs text-slate-400">
-            {communitySummary.company_name} · {communitySummary.symbol} ·{" "}
-            {communitySummary.fetched_at}
-          </div>
+          {(communityFirstPage || communityLastPage) && (
+            <div className="text-xs text-slate-400">
+              {(communityFirstPage ?? communityLastPage)?.company_name} ·{" "}
+              {(communityFirstPage ?? communityLastPage)?.symbol} ·{" "}
+              {(communityFirstPage ?? communityLastPage)?.fetched_at}
+            </div>
+          )}
         </div>
       )}
 
@@ -183,18 +276,7 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
           )}
           <div
             ref={scrollContainerRef}
-            onScroll={(event) => {
-              const element = event.currentTarget;
-              scrollPositionsRef.current[activeTab] = element.scrollTop;
-
-              if (
-                hasNextPage &&
-                !isFetchingNextPage &&
-                element.scrollHeight - element.scrollTop - element.clientHeight < 40
-              ) {
-                void fetchNextPage();
-              }
-            }}
+            onScroll={(event) => handleScroll(event.currentTarget)}
             className="max-h-80 space-y-3 overflow-y-auto pr-1">
             {newsItems.map((item) => (
               <article
@@ -224,7 +306,7 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
                 </a>
               </article>
             ))}
-            {isFetchingNextPage && (
+            {isFetchingNextNewsPage && (
               <div className="flex justify-center py-2">
                 <LoadingSpinner label="뉴스 더 불러오는 중..." size="sm" />
               </div>
@@ -235,10 +317,11 @@ export default function CommunityNewsSection({ symbol }: CommunityNewsSectionPro
               </div>
             )}
           </div>
-          {newsSummary && (
+          {(newsFirstPage || newsLastPage) && (
             <div className="text-xs text-slate-400">
-              {newsSummary.company_name} · {newsSummary.symbol} ·{" "}
-              {newsSummary.fetched_at}
+              {(newsFirstPage ?? newsLastPage)?.company_name} ·{" "}
+              {(newsFirstPage ?? newsLastPage)?.symbol} ·{" "}
+              {(newsFirstPage ?? newsLastPage)?.fetched_at}
             </div>
           )}
         </div>
