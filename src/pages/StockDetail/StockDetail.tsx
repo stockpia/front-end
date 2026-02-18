@@ -5,8 +5,8 @@ import ChartPanel, {
   type ChartType,
 } from "@/components/ChartPanel";
 import { fetchStockChart } from "@/lib/api/stocks";
-import type { StockChartRange, StockChartType } from "@/types/stocks";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
+import type { StockChartRange, StockChartType } from "@/types/stocks";
 
 export default function StockDetail() {
   const navigate = useNavigate();
@@ -97,7 +97,13 @@ export default function StockDetail() {
             </h3>
             <button
               type="button"
-              onClick={() => navigate("/averaging-calculator")}
+              onClick={() =>
+                navigate(
+                  `/calculator/${stockId ?? ""}?name=${encodeURIComponent(
+                    searchParams.get("name") ?? "",
+                  )}`,
+                )
+              }
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800">
               계산기 열기
             </button>
