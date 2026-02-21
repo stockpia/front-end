@@ -13,18 +13,34 @@ import {
 import type { StockCommunityResponse } from "@/types/stockCommunityNews";
 
 const COMMUNITY_LATEST_POLL_INTERVAL_MS = 10_000;
+type CommunityNewsTab = "community" | "news";
 
 type CommunityNewsSectionProps = {
   symbol?: string;
+  activeTab?: CommunityNewsTab;
+  showContainer?: boolean;
+  showHeader?: boolean;
 };
 
 export default function CommunityNewsSection({
   symbol,
+  activeTab: controlledTab,
+  showContainer = true,
+  showHeader = true,
 }: CommunityNewsSectionProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"community" | "news">("community");
+  const [internalTab, setInternalTab] = useState<CommunityNewsTab>(
+    controlledTab ?? "community",
+  );
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollPositionsRef = useRef({ community: 0, news: 0 });
+  const activeTab = controlledTab ?? internalTab;
+
+  useEffect(() => {
+    if (controlledTab) {
+      setInternalTab(controlledTab);
+    }
+  }, [controlledTab]);
 
   const {
     data: communityData,
@@ -224,7 +240,7 @@ export default function CommunityNewsSection({
     });
   }, [activeTab]);
 
-  const handleTabChange = (nextTab: "community" | "news") => {
+  const handleTabChange = (nextTab: CommunityNewsTab) => {
     if (nextTab === activeTab) {
       return;
     }
@@ -232,7 +248,7 @@ export default function CommunityNewsSection({
     if (container) {
       scrollPositionsRef.current[activeTab] = container.scrollTop;
     }
-    setActiveTab(nextTab);
+    setInternalTab(nextTab);
   };
 
   const handleScroll = (element: HTMLDivElement) => {
@@ -257,38 +273,40 @@ export default function CommunityNewsSection({
     }
   };
 
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold text-slate-900">
-          커뮤니티 / 뉴스
-        </h3>
-        <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
-          <button
-            type="button"
-            onClick={() => handleTabChange("community")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              activeTab === "community"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}>
-            커뮤니티
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange("news")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
-              activeTab === "news"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            }`}>
-            뉴스
-          </button>
+  const content = (
+    <>
+      {showHeader && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h3 className="text-lg font-semibold text-slate-900">
+            커뮤니티 / 뉴스
+          </h3>
+          <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => handleTabChange("community")}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                activeTab === "community"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}>
+              커뮤니티
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange("news")}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                activeTab === "news"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}>
+              뉴스
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {activeTab === "community" && (
-        <div className="mt-6 space-y-4">
+        <div className={`${showHeader ? "mt-6 " : ""}space-y-4`}>
           {communityLoading && (
             <div className="flex justify-center py-4">
               <LoadingSpinner label="커뮤니티 불러오는 중..." />
@@ -365,7 +383,7 @@ export default function CommunityNewsSection({
       )}
 
       {activeTab === "news" && (
-        <div className="mt-6 space-y-4">
+        <div className={`${showHeader ? "mt-6 " : ""}space-y-4`}>
           {newsLoading && (
             <div className="flex justify-center py-4">
               <LoadingSpinner label="뉴스 불러오는 중..." />
@@ -428,6 +446,16 @@ export default function CommunityNewsSection({
           )}
         </div>
       )}
+    </>
+  );
+
+  if (!showContainer) {
+    return content;
+  }
+
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+      {content}
     </section>
   );
 }

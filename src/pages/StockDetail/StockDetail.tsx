@@ -8,6 +8,8 @@ import { fetchStockChart } from "@/lib/api/stocks";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
 import type { StockChartRange, StockChartType } from "@/types/stocks";
 
+type StockInsightTab = "report" | "news" | "community";
+
 export default function StockDetail() {
   const navigate = useNavigate();
   const { stockId } = useParams();
@@ -17,6 +19,8 @@ export default function StockDetail() {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartPlotly, setChartPlotly] = useState<unknown | null>(null);
+  const [activeInsightTab, setActiveInsightTab] =
+    useState<StockInsightTab>("report");
 
   const symbolLabel = useMemo(() => {
     const nameParam = searchParams.get("name");
@@ -86,7 +90,59 @@ export default function StockDetail() {
       />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-        <h3 className="text-lg font-semibold text-slate-900">종목 리포트</h3>
+        <div className="flex w-full">
+          <div className="flex w-full items-center gap-2 rounded-full bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setActiveInsightTab("report")}
+              className={`flex-1 rounded-full px-4 py-1.5 text-lg font-semibold transition ${
+                activeInsightTab === "report"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}>
+              종목 리포트
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveInsightTab("news")}
+              className={`flex-1 rounded-full px-4 py-1.5 text-lg font-semibold transition ${
+                activeInsightTab === "news"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}>
+              뉴스
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveInsightTab("community")}
+              className={`flex-1 rounded-full px-4 py-1.5 text-lg font-semibold transition ${
+                activeInsightTab === "community"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}>
+              커뮤니티
+            </button>
+          </div>
+        </div>
+
+        {activeInsightTab === "report" && (
+          <div className="mt-6">
+            <h4 className="text-base font-semibold text-slate-900">
+              종목 리포트
+            </h4>
+          </div>
+        )}
+
+        {activeInsightTab !== "report" && (
+          <div className="mt-6">
+            <CommunityNewsSection
+              symbol={stockId}
+              activeTab={activeInsightTab === "news" ? "news" : "community"}
+              showContainer={false}
+              showHeader={false}
+            />
+          </div>
+        )}
       </section>
 
       {isHolding && (
@@ -110,8 +166,6 @@ export default function StockDetail() {
           </div>
         </section>
       )}
-
-      <CommunityNewsSection symbol={stockId} />
     </div>
   );
 }
