@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CommonModal from "@/components/CommonModal";
 
 type VerificationStepProps = {
   onPrev: () => void;
@@ -9,6 +10,9 @@ export default function VerificationStep({ onPrev }: VerificationStepProps) {
   const navigate = useNavigate();
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const handleMoveToChatbot = () => {
+    window.close();
+  };
 
   return (
     <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
@@ -48,22 +52,18 @@ export default function VerificationStep({ onPrev }: VerificationStepProps) {
         </button>
       </div>
 
-      {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 text-center">
-            <p className="text-2xl font-bold">계좌 연결이 완료됐어요 !</p>
-            <p className="mt-4 whitespace-pre-line text-muted-foreground">
-              {"이제 주토피아에서\n보유 종목/거래내역 기반 리포트를\n바로 확인할 수 있어요!"}
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="mt-6 w-full rounded-lg bg-primary px-5 py-2 font-medium text-primary-foreground">
-              메인 화면으로 이동
-            </button>
-          </div>
-        </div>
-      )}
+      <CommonModal
+        open={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title="계좌 연결이 완료됐어요 !"
+        description={
+          "이제 주토피아에서\n보유 종목/거래내역 기반 리포트를\n바로 확인할 수 있어요!"
+        }
+        actionLabel="메인 화면으로"
+        onAction={() => navigate("/")}
+        secondaryActionLabel="챗봇으로"
+        onSecondaryAction={handleMoveToChatbot}
+      />
     </section>
   );
 }
