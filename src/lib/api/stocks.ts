@@ -1,43 +1,20 @@
 import { api } from "@/lib/api/axios";
-import type { StockItem } from "@/pages/Stocks/components/StocksList";
+import type {
+	StockCommunityLatestResponse,
+	StockCommunityResponse,
+	StockNewsResponse,
+} from "@/types/stockCommunityNews";
+import type {
+	StockChartRange,
+	StockChartResponse,
+	StockChartType,
+	StocksListParams,
+	StocksListResponse,
+	StocksOrder,
+	StockWatchlistResponse,
+} from "@/types/stocks";
 
-export type StocksMarket = "ALL" | "KOSPI" | "KOSDAQ";
-export type StocksSort = "change_rate" | "price" | "volume";
-export type StocksOrder = "desc" | "asc";
-export type StockChartRange = "1d" | "1m" | "3m" | "1y";
-export type StockChartType = "candlestick" | "technical" | "line" | "volume";
 export type HoldingsSort = "eval_amount" | "profit_rate" | "name";
-
-export type StocksListParams = {
-  market?: StocksMarket;
-  sort?: StocksSort;
-  order?: StocksOrder;
-};
-
-export type StocksListResponse = {
-  market: string;
-  sort_by: string;
-  order: string;
-  count: number;
-  stocks: StockItem[];
-};
-
-export type StockChartResponse = {
-  symbol: string;
-  range: StockChartRange;
-  type: StockChartType;
-  plotly: unknown;
-  meta?: {
-    ma?: number[];
-    generatedAt?: string;
-  };
-};
-
-export type StockWatchlistResponse = {
-	user_id: string;
-	count: number;
-	stocks: StockItem[];
-};
 
 export type HoldingsStock = {
 	ticker: string;
@@ -60,42 +37,42 @@ export type HoldingsResponse = {
 };
 
 export async function fetchStocksList(
-  params: StocksListParams,
-  signal?: AbortSignal,
+	params: StocksListParams,
+	signal?: AbortSignal,
 ) {
-  const { data } = await api.get<StocksListResponse>("/api/web/stocks/list", {
-    params,
-    signal,
-  });
-  return data;
+	const { data } = await api.get<StocksListResponse>("/api/web/stocks/list", {
+		params,
+		signal,
+	});
+	return data;
 }
 
 export async function fetchStockChart(
-  symbol: string,
-  params: { range: StockChartRange; type: StockChartType },
-  signal?: AbortSignal,
+	symbol: string,
+	params: { range: StockChartRange; type: StockChartType },
+	signal?: AbortSignal,
 ) {
-  const { data } = await api.get<StockChartResponse>(
-    `/api/web/stocks/${symbol}/chart`,
-    {
-      params,
-      signal,
-    },
-  );
-  return data;
+	const { data } = await api.get<StockChartResponse>(
+		`/api/web/stocks/${symbol}/chart`,
+		{
+			params,
+			signal,
+		},
+	);
+	return data;
 }
 
 export async function fetchStockWatchlist(
 	userId: string,
 	signal?: AbortSignal,
 ) {
-  const { data } = await api.get<StockWatchlistResponse>(
-    "/api/web/stocks/watchlist",
-    {
-      params: { user_id: userId },
-      signal,
-    },
-  );
+	const { data } = await api.get<StockWatchlistResponse>(
+		"/api/web/stocks/watchlist",
+		{
+			params: { user_id: userId },
+			signal,
+		},
+	);
 	return data;
 }
 
@@ -107,5 +84,50 @@ export async function fetchHoldings(
 		params,
 		signal,
 	});
+	return data;
+}
+
+export async function fetchStockNews(
+	symbol: string,
+	params?: { cursor?: string; limit?: number },
+	signal?: AbortSignal,
+) {
+	const { data } = await api.get<StockNewsResponse>(
+		`/api/web/stocks/${symbol}/news`,
+		{
+			params,
+			signal,
+		},
+	);
+	return data;
+}
+
+export async function fetchStockCommunity(
+	symbol: string,
+	params?: { cursor?: string; limit?: number },
+	signal?: AbortSignal,
+) {
+	const { data } = await api.get<StockCommunityResponse>(
+		`/api/web/stocks/${symbol}/community`,
+		{
+			params,
+			signal,
+		},
+	);
+	return data;
+}
+
+export async function fetchStockCommunityLatest(
+	symbol: string,
+	params: { since: string },
+	signal?: AbortSignal,
+) {
+	const { data } = await api.get<StockCommunityLatestResponse>(
+		`/api/web/stocks/${symbol}/community/latest`,
+		{
+			params,
+			signal,
+		},
+	);
 	return data;
 }
