@@ -133,8 +133,8 @@ function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
   const nextData = normalizeLineData(figure.data ?? []);
   const extremeAnnotations = buildCandlestickExtremes(nextData);
   if (extremeAnnotations) {
-    const existing = Array.isArray(nextLayout?.annotations)
-      ? nextLayout?.annotations
+    const existing = Array.isArray(nextLayout.annotations)
+      ? nextLayout.annotations
       : [];
     nextLayout.annotations = [...existing, ...extremeAnnotations];
   }
@@ -155,8 +155,8 @@ function normalizeCandlestickLike(
   if (withExtremes) {
     const extremeAnnotations = buildCandlestickExtremes(nextData);
     if (extremeAnnotations) {
-      const existing = Array.isArray(nextLayout?.annotations)
-        ? nextLayout?.annotations
+      const existing = Array.isArray(nextLayout.annotations)
+        ? nextLayout.annotations
         : [];
       nextLayout.annotations = [...existing, ...extremeAnnotations];
     }
@@ -171,7 +171,7 @@ function normalizeCandlestickLike(
 
 function normalizeCandlestickLayout(
   layout: PlotlyFigure["layout"],
-): PlotlyFigure["layout"] {
+): Record<string, unknown> {
   if (!layout) {
     layout = {};
   }
