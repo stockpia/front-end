@@ -34,6 +34,7 @@ export default function CommunityNewsSection({
 	);
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	const scrollPositionsRef = useRef({ community: 0, news: 0 });
+	const communityFirstPageRef = useRef<StockCommunityResponse | null>(null);
 	const activeTab = controlledTab ?? internalTab;
 
 	useEffect(() => {
@@ -152,11 +153,15 @@ export default function CommunityNewsSection({
 	}, [communityItems, communityFirstPage]);
 
 	useEffect(() => {
+		communityFirstPageRef.current = communityFirstPage;
+	}, [communityFirstPage]);
+
+	useEffect(() => {
 		if (
 			activeTab !== "community" ||
 			!symbol ||
 			!latestCommunitySince ||
-			!communityFirstPage
+			!communityFirstPageRef.current
 		) {
 			return;
 		}
@@ -224,7 +229,6 @@ export default function CommunityNewsSection({
 		activeTab,
 		symbol,
 		latestCommunitySince,
-		communityFirstPage,
 		queryClient,
 	]);
 
