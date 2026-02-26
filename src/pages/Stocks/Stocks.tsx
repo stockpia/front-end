@@ -6,20 +6,15 @@ import ChartPanel, {
 } from "@/components/ChartPanel";
 import {
 	fetchHoldings,
-	fetchStockChart,
 	fetchStocksList,
 	fetchStockWatchlist,
 	type HoldingsStock,
 } from "@/lib/api/stocks";
+import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
-import type {
-	StockChartRange,
-	StockChartType,
-	StockItem,
-	StockSort,
-} from "@/types/stocks";
+import type { StockItem, StockSort } from "@/types/stocks";
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 	{ value: "price", label: "주가순" },
@@ -48,9 +43,6 @@ export default function Stocks() {
 	const [holdings, setHoldings] = useState<HoldingsStock[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [chartLoading, setChartLoading] = useState(false);
-	const [chartError, setChartError] = useState<string | null>(null);
-	const [chartPlotly, setChartPlotly] = useState<unknown | null>(null);
 	const navigate = useNavigate();
 
 	const listTitle = useMemo(() => {
@@ -245,51 +237,11 @@ export default function Stocks() {
 
 	const effectiveSelectedStock = selectedStock ?? sortedStocks[0] ?? null;
 	const selectedSymbol = effectiveSelectedStock?.ticker ?? null;
-
-	useEffect(() => {
-		if (!selectedSymbol) {
-			setChartPlotly(null);
-			setChartError(null);
-			setChartLoading(false);
-			return;
-		}
-
-		const controller = new AbortController();
-		const chartRange = range as StockChartRange;
-		const type = chartType as StockChartType;
-
-		setChartLoading(true);
-		setChartError(null);
-
-		fetchStockChart(
-			selectedSymbol,
-			{
-				range: chartRange,
-				type,
-			},
-			controller.signal,
-		)
-			.then((response) => {
-				setChartPlotly(response.plotly ?? null);
-			})
-			.catch((err: unknown) => {
-				if (controller.signal.aborted) {
-					return;
-				}
-				const message =
-					err instanceof Error
-						? err.message
-						: "알 수 없는 오류가 발생했습니다.";
-				setChartError(message);
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) {
-					setChartLoading(false);
-				}
-			});
-
-		return () => controller.abort();
-	}, [selectedSymbol, range, chartType]);
+	const chartQuery = useStockChartQuery({
+		symbol: selectedSymbol,
+		range,
+		type: chartType,
+	});
 
 	return (
 		<div className="space-y-8 py-8">
@@ -344,9 +296,9 @@ export default function Stocks() {
 					onRangeChange={setRange}
 					type={chartType}
 					onTypeChange={setChartType}
-					loading={chartLoading}
-					error={chartError}
-					plotlyJson={chartPlotly}
+					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
+					error={chartQuery.errorMessage}
+					plotlyJson={chartQuery.plotlyJson}
 				/>
 			) : (
 				<ChartPanel
@@ -355,9 +307,9 @@ export default function Stocks() {
 					onRangeChange={setRange}
 					type={chartType}
 					onTypeChange={setChartType}
-					loading={chartLoading}
-					error={chartError}
-					plotlyJson={chartPlotly}
+					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
+					error={chartQuery.errorMessage}
+					plotlyJson={chartQuery.plotlyJson}
 				/>
 			)}
 		</div>
