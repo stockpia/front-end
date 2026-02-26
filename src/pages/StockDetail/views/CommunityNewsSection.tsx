@@ -1,18 +1,10 @@
-import {
-	type InfiniteData,
-	useInfiniteQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import {
-	fetchStockCommunity,
-	fetchStockCommunityLatest,
-	fetchStockNews,
-} from "@/lib/api/stocks/communityNews";
-import type { StockCommunityResponse } from "@/types/stockCommunityNews";
-
-const COMMUNITY_LATEST_POLL_INTERVAL_MS = 10_000;
+	useStockCommunityInfiniteQuery,
+	useStockCommunityLatestPolling,
+	useStockNewsInfiniteQuery,
+} from "@/hooks/queries/useStockCommunityNewsQueries";
 type CommunityNewsTab = "community" | "news";
 
 type CommunityNewsSectionProps = {
@@ -28,13 +20,11 @@ export default function CommunityNewsSection({
 	showContainer = true,
 	showHeader = true,
 }: CommunityNewsSectionProps) {
-	const queryClient = useQueryClient();
 	const [internalTab, setInternalTab] = useState<CommunityNewsTab>(
 		controlledTab ?? "community",
 	);
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	const scrollPositionsRef = useRef({ community: 0, news: 0 });
-	const communityFirstPageRef = useRef<StockCommunityResponse | null>(null);
 	const activeTab = controlledTab ?? internalTab;
 
 	useEffect(() => {
@@ -43,194 +33,45 @@ export default function CommunityNewsSection({
 		}
 	}, [controlledTab]);
 
+	const communityQuery = useStockCommunityInfiniteQuery({
+		symbol,
+		enabled: activeTab === "community",
+	});
+	const newsQuery = useStockNewsInfiniteQuery({
+		symbol,
+		enabled: activeTab === "news",
+	});
+
 	const {
-		data: communityData,
+		items: communityItems,
+		firstPage: communityFirstPage,
+		lastPage: communityLastPage,
 		isLoading: communityLoading,
 		isError: isCommunityError,
-		error: communityError,
+		errorMessage: communityErrorMessage,
 		hasNextPage: hasNextCommunityPage,
 		isFetchingNextPage: isFetchingNextCommunityPage,
 		fetchNextPage: fetchNextCommunityPage,
-	} = useInfiniteQuery({
-		queryKey: ["stock-community", symbol],
-		enabled: activeTab === "community" && Boolean(symbol),
-		initialPageParam: undefined as string | undefined,
-		queryFn: ({ pageParam }) =>
-			fetchStockCommunity(symbol as string, { cursor: pageParam, limit: 20 }),
-		getNextPageParam: (lastPage) => {
-			if (!lastPage.has_more) {
-				return undefined;
-			}
-
-			if (lastPage.next_cursor) {
-				return lastPage.next_cursor;
-			}
-
-			return lastPage.items[lastPage.items.length - 1]?.id;
-		},
-	});
-
+		latestSince: latestCommunitySince,
+	} = communityQuery;
 	const {
-		data: newsData,
+		items: newsItems,
+		firstPage: newsFirstPage,
+		lastPage: newsLastPage,
 		isLoading: newsLoading,
 		isError: isNewsError,
-		error: newsError,
+		errorMessage: newsErrorMessage,
 		hasNextPage: hasNextNewsPage,
 		isFetchingNextPage: isFetchingNextNewsPage,
 		fetchNextPage: fetchNextNewsPage,
-	} = useInfiniteQuery({
-		queryKey: ["stock-news", symbol],
-		enabled: activeTab === "news" && Boolean(symbol),
-		initialPageParam: undefined as string | undefined,
-		queryFn: ({ pageParam }) =>
-			fetchStockNews(symbol as string, { cursor: pageParam, limit: 20 }),
-		getNextPageParam: (lastPage) => {
-			if (!lastPage.has_more) {
-				return undefined;
-			}
+	} = newsQuery;
 
-			if (lastPage.next_cursor) {
-				return lastPage.next_cursor;
-			}
-
-			return lastPage.items[lastPage.items.length - 1]?.id;
-		},
-	});
-
-	const communityPages = communityData?.pages ?? [];
-	const communityFirstPage = communityPages[0] ?? null;
-	const communityLastPage = communityPages[communityPages.length - 1] ?? null;
-	const communityItems = useMemo(() => {
-		const seen = new Set<string>();
-		return communityPages.flatMap((page) =>
-			page.items.filter((item) => {
-				if (seen.has(item.id)) {
-					return false;
-				}
-				seen.add(item.id);
-				return true;
-			}),
-		);
-	}, [communityPages]);
-
-	const newsPages = newsData?.pages ?? [];
-	const newsFirstPage = newsPages[0] ?? null;
-	const newsLastPage = newsPages[newsPages.length - 1] ?? null;
-	const newsItems = useMemo(() => {
-		const seen = new Set<string>();
-		return newsPages.flatMap((page) =>
-			page.items.filter((item) => {
-				if (seen.has(item.id)) {
-					return false;
-				}
-				seen.add(item.id);
-				return true;
-			}),
-		);
-	}, [newsPages]);
-
-	const communityErrorMessage =
-		communityError instanceof Error
-			? communityError.message
-			: "커뮤니티를 불러오는 중 오류가 발생했습니다.";
-
-	const newsErrorMessage =
-		newsError instanceof Error
-			? newsError.message
-			: "뉴스를 불러오는 중 오류가 발생했습니다.";
-
-	const latestCommunitySince = useMemo(() => {
-		if (communityItems.length === 0) {
-			return communityFirstPage?.fetched_at ?? null;
-		}
-
-		return communityItems.reduce((latest, item) => {
-			if (!latest || item.published_at > latest) {
-				return item.published_at;
-			}
-			return latest;
-		}, "" as string);
-	}, [communityItems, communityFirstPage]);
-
-	useEffect(() => {
-		communityFirstPageRef.current = communityFirstPage;
-	}, [communityFirstPage]);
-
-	useEffect(() => {
-		if (
-			activeTab !== "community" ||
-			!symbol ||
-			!latestCommunitySince ||
-			!communityFirstPageRef.current
-		) {
-			return;
-		}
-
-		const pollLatest = async () => {
-			const latestResponse = await fetchStockCommunityLatest(symbol, {
-				since: latestCommunitySince,
-			});
-
-			if (latestResponse.items.length === 0) {
-				return;
-			}
-
-			queryClient.setQueryData<InfiniteData<StockCommunityResponse>>(
-				["stock-community", symbol],
-				(prev) => {
-					if (!prev || prev.pages.length === 0) {
-						return prev;
-					}
-
-					const existingIds = new Set(
-						prev.pages.flatMap((page) => page.items.map((item) => item.id)),
-					);
-					const incomingItems = latestResponse.items.filter(
-						(item) => !existingIds.has(item.id),
-					);
-
-					if (incomingItems.length === 0) {
-						return prev;
-					}
-
-					const firstPage = prev.pages[0];
-					const nextFirstPage: StockCommunityResponse = {
-						...firstPage,
-						items: [...incomingItems, ...firstPage.items],
-						total_count: firstPage.total_count + incomingItems.length,
-						new_count:
-							typeof latestResponse.new_count === "number"
-								? latestResponse.new_count
-								: firstPage.new_count + incomingItems.length,
-						fetched_at: latestResponse.fetched_at || firstPage.fetched_at,
-					};
-
-					return {
-						...prev,
-						pages: [nextFirstPage, ...prev.pages.slice(1)],
-					};
-				},
-			);
-		};
-
-		void pollLatest().catch(() => {
-			// Ignore polling errors and continue with the next interval.
-		});
-		const intervalId = window.setInterval(() => {
-			void pollLatest().catch(() => {
-				// Ignore polling errors and continue with the next interval.
-			});
-		}, COMMUNITY_LATEST_POLL_INTERVAL_MS);
-
-		return () => {
-			window.clearInterval(intervalId);
-		};
-	}, [
-		activeTab,
+	useStockCommunityLatestPolling({
 		symbol,
-		latestCommunitySince,
-		queryClient,
-	]);
+		since: latestCommunitySince,
+		enabled: activeTab === "community",
+		hasSeedPage: Boolean(communityFirstPage),
+	});
 
 	useEffect(() => {
 		const container = scrollContainerRef.current;
