@@ -5,7 +5,7 @@ type BasicInfoStepProps = {
 export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
   return (
     <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-      <div className="mt-5 space-y-4 text-left">
+      <div className="mt-5 space-y-8 text-left">
         <label className="block">
           <span className="mb-1 block text-sm">이름</span>
           <input
@@ -22,6 +22,7 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             placeholder="19900101"
           />
         </label>
+
         <label className="block">
           <span className="mb-1 block text-sm">전화번호</span>
           <input

@@ -4,22 +4,16 @@ import ChartPanel, {
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
+import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import {
-	fetchHoldings,
-	fetchStockChart,
-	fetchStocksList,
-	fetchStockWatchlist,
-	type HoldingsStock,
-} from "@/lib/api/stocks";
+	useHoldingsQuery,
+	useStocksListQuery,
+	useStockWatchlistQuery,
+} from "@/hooks/queries/useStocksListQueries";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
-import type {
-	StockChartRange,
-	StockChartType,
-	StockItem,
-	StockSort,
-} from "@/types/stocks";
+import type { StockItem, StockSort } from "@/types/stocks";
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 	{ value: "price", label: "주가순" },
@@ -39,18 +33,13 @@ export default function Stocks() {
 	const [userSelectedTicker, setUserSelectedTicker] = useState<string | null>(
 		null,
 	);
+	const [watchlistItemsByTicker, setWatchlistItemsByTicker] = useState<
+		Record<string, StockItem>
+	>({});
 	const [range, setRange] = useState<ChartRange>("1d");
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
-	const [allStocks, setAllStocks] = useState<StockItem[]>([]);
-	const [watchlistStocks, setWatchlistStocks] = useState<StockItem[]>([]);
-	const [holdings, setHoldings] = useState<HoldingsStock[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [chartLoading, setChartLoading] = useState(false);
-	const [chartError, setChartError] = useState<string | null>(null);
-	const [chartPlotly, setChartPlotly] = useState<unknown | null>(null);
 	const navigate = useNavigate();
 
 	const listTitle = useMemo(() => {
@@ -69,9 +58,51 @@ export default function Stocks() {
 		setSortBy(nextTab === "holding" ? "eval_amount" : "change_rate");
 	};
 
+	const listSort = ["price", "change_rate", "volume"].includes(sortBy)
+		? (sortBy as "price" | "change_rate" | "volume")
+		: "change_rate";
+	const holdingsSort =
+		sortBy === "profit_rate" || sortBy === "name"
+			? (sortBy as "profit_rate" | "name")
+			: "eval_amount";
+
+	const stocksListQuery = useStocksListQuery({
+		market: "ALL",
+		sort: listSort,
+		order: "desc",
+		enabled: activeTab === "all",
+	});
+	const watchlistQuery = useStockWatchlistQuery({
+		userId: "demo_user",
+		enabled: activeTab === "watchlist",
+	});
+	const holdingsQuery = useHoldingsQuery({
+		sort: holdingsSort,
+		order: "desc",
+		enabled: activeTab === "holding",
+	});
+
+	useEffect(() => {
+		if (watchlistQuery.stocks.length === 0) {
+			return;
+		}
+		setWatchlistItemsByTicker((prev) => {
+			if (Object.keys(prev).length > 0) {
+				return prev;
+			}
+			return watchlistQuery.stocks.reduce<Record<string, StockItem>>(
+				(acc, item) => {
+					acc[item.ticker] = item;
+					return acc;
+				},
+				{},
+			);
+		});
+	}, [watchlistQuery.stocks]);
+
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
-			return holdings.map((stock) => ({
+			return holdingsQuery.holdings.map((stock) => ({
 				ticker: stock.ticker,
 				name: stock.name,
 				current_price: stock.current_price,
@@ -84,11 +115,35 @@ export default function Stocks() {
 		}
 
 		if (activeTab === "watchlist") {
-			return watchlistStocks;
+			return Object.values(watchlistItemsByTicker);
 		}
 
-		return allStocks;
-	}, [activeTab, allStocks, holdings, watchlistStocks]);
+		return stocksListQuery.stocks;
+	}, [
+		activeTab,
+		holdingsQuery.holdings,
+		stocksListQuery.stocks,
+		watchlistItemsByTicker,
+	]);
+
+	const watchlistedTickers = useMemo(
+		() => new Set(Object.keys(watchlistItemsByTicker)),
+		[watchlistItemsByTicker],
+	);
+
+	const handleToggleWatchlist = (item: StockItem) => {
+		setWatchlistItemsByTicker((prev) => {
+			if (prev[item.ticker]) {
+				const next = { ...prev };
+				delete next[item.ticker];
+				return next;
+			}
+			return {
+				...prev,
+				[item.ticker]: item,
+			};
+		});
+	};
 
 	const normalizedSearchTerm = useMemo(
 		() => searchTerm.trim().toLowerCase(),
@@ -133,99 +188,18 @@ export default function Stocks() {
 		}
 	}, [activeTab, filteredStocks, sortBy]);
 
-	useEffect(() => {
-		const controller = new AbortController();
-		const listSort = ["price", "change_rate", "volume"].includes(sortBy)
-			? (sortBy as "price" | "change_rate" | "volume")
-			: "change_rate";
-
-		setIsLoading(true);
-		setError(null);
-
-		if (activeTab === "holding") {
-			fetchHoldings(
-				{
-					sort:
-						sortBy === "profit_rate" || sortBy === "name"
-							? (sortBy as "profit_rate" | "name")
-							: "eval_amount",
-					order: "desc",
-				},
-				controller.signal,
-			)
-				.then((response) => {
-					setHoldings(response.stocks ?? []);
-				})
-				.catch((err: unknown) => {
-					if (controller.signal.aborted) {
-						return;
-					}
-					const message =
-						err instanceof Error
-							? err.message
-							: "알 수 없는 오류가 발생했습니다.";
-					setError(message);
-				})
-				.finally(() => {
-					if (!controller.signal.aborted) {
-						setIsLoading(false);
-					}
-				});
-			return () => controller.abort();
-		}
-
-		if (activeTab === "watchlist") {
-			fetchStockWatchlist("demo_user", controller.signal)
-				.then((response) => {
-					setWatchlistStocks(response.stocks ?? []);
-				})
-				.catch((err: unknown) => {
-					if (controller.signal.aborted) {
-						return;
-					}
-					const message =
-						err instanceof Error
-							? err.message
-							: "알 수 없는 오류가 발생했습니다.";
-					setError(message);
-				})
-				.finally(() => {
-					if (!controller.signal.aborted) {
-						setIsLoading(false);
-					}
-				});
-			return () => controller.abort();
-		}
-
-		fetchStocksList(
-			{
-				market: "ALL",
-				sort: listSort,
-				order: "desc",
-			},
-			controller.signal,
-		)
-			.then((response) => {
-				setAllStocks(response.stocks ?? []);
-			})
-			.catch((err: unknown) => {
-				if (controller.signal.aborted) {
-					return;
-				}
-				const message =
-					err instanceof Error
-						? err.message
-						: "알 수 없는 오류가 발생했습니다.";
-				setError(message);
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) {
-					setIsLoading(false);
-				}
-			});
-
-		return () => controller.abort();
-	}, [activeTab, sortBy]);
+	const isLoading =
+		activeTab === "holding"
+			? holdingsQuery.isLoading
+			: activeTab === "watchlist"
+				? watchlistQuery.isLoading
+				: stocksListQuery.isLoading;
+	const error =
+		activeTab === "holding"
+			? holdingsQuery.errorMessage
+			: activeTab === "watchlist"
+				? watchlistQuery.errorMessage
+				: stocksListQuery.errorMessage;
 
 	useEffect(() => {
 		setSelectedStock((prev) => {
@@ -245,51 +219,11 @@ export default function Stocks() {
 
 	const effectiveSelectedStock = selectedStock ?? sortedStocks[0] ?? null;
 	const selectedSymbol = effectiveSelectedStock?.ticker ?? null;
-
-	useEffect(() => {
-		if (!selectedSymbol) {
-			setChartPlotly(null);
-			setChartError(null);
-			setChartLoading(false);
-			return;
-		}
-
-		const controller = new AbortController();
-		const chartRange = range as StockChartRange;
-		const type = chartType as StockChartType;
-
-		setChartLoading(true);
-		setChartError(null);
-
-		fetchStockChart(
-			selectedSymbol,
-			{
-				range: chartRange,
-				type,
-			},
-			controller.signal,
-		)
-			.then((response) => {
-				setChartPlotly(response.plotly ?? null);
-			})
-			.catch((err: unknown) => {
-				if (controller.signal.aborted) {
-					return;
-				}
-				const message =
-					err instanceof Error
-						? err.message
-						: "알 수 없는 오류가 발생했습니다.";
-				setChartError(message);
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) {
-					setChartLoading(false);
-				}
-			});
-
-		return () => controller.abort();
-	}, [selectedSymbol, range, chartType]);
+	const chartQuery = useStockChartQuery({
+		symbol: selectedSymbol,
+		range,
+		type: chartType,
+	});
 
 	return (
 		<div className="space-y-8 py-8">
@@ -322,6 +256,8 @@ export default function Stocks() {
 							setSelectedStock(item);
 							setUserSelectedTicker(item.ticker);
 						}}
+						onToggleWatchlist={handleToggleWatchlist}
+						watchlistedTickers={watchlistedTickers}
 						sortBy={sortBy}
 						onSortChange={setSortBy}
 						sortOptions={
@@ -344,9 +280,9 @@ export default function Stocks() {
 					onRangeChange={setRange}
 					type={chartType}
 					onTypeChange={setChartType}
-					loading={chartLoading}
-					error={chartError}
-					plotlyJson={chartPlotly}
+					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
+					error={chartQuery.errorMessage}
+					plotlyJson={chartQuery.plotlyJson}
 				/>
 			) : (
 				<ChartPanel
@@ -355,9 +291,9 @@ export default function Stocks() {
 					onRangeChange={setRange}
 					type={chartType}
 					onTypeChange={setChartType}
-					loading={chartLoading}
-					error={chartError}
-					plotlyJson={chartPlotly}
+					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
+					error={chartQuery.errorMessage}
+					plotlyJson={chartQuery.plotlyJson}
 				/>
 			)}
 		</div>
