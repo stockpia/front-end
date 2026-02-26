@@ -33,6 +33,9 @@ export default function Stocks() {
 	const [userSelectedTicker, setUserSelectedTicker] = useState<string | null>(
 		null,
 	);
+	const [watchlistItemsByTicker, setWatchlistItemsByTicker] = useState<
+		Record<string, StockItem>
+	>({});
 	const [range, setRange] = useState<ChartRange>("1d");
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
@@ -79,6 +82,24 @@ export default function Stocks() {
 		enabled: activeTab === "holding",
 	});
 
+	useEffect(() => {
+		if (watchlistQuery.stocks.length === 0) {
+			return;
+		}
+		setWatchlistItemsByTicker((prev) => {
+			if (Object.keys(prev).length > 0) {
+				return prev;
+			}
+			return watchlistQuery.stocks.reduce<Record<string, StockItem>>(
+				(acc, item) => {
+					acc[item.ticker] = item;
+					return acc;
+				},
+				{},
+			);
+		});
+	}, [watchlistQuery.stocks]);
+
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
 			return holdingsQuery.holdings.map((stock) => ({
@@ -94,7 +115,7 @@ export default function Stocks() {
 		}
 
 		if (activeTab === "watchlist") {
-			return watchlistQuery.stocks;
+			return Object.values(watchlistItemsByTicker);
 		}
 
 		return stocksListQuery.stocks;
@@ -102,8 +123,27 @@ export default function Stocks() {
 		activeTab,
 		holdingsQuery.holdings,
 		stocksListQuery.stocks,
-		watchlistQuery.stocks,
+		watchlistItemsByTicker,
 	]);
+
+	const watchlistedTickers = useMemo(
+		() => new Set(Object.keys(watchlistItemsByTicker)),
+		[watchlistItemsByTicker],
+	);
+
+	const handleToggleWatchlist = (item: StockItem) => {
+		setWatchlistItemsByTicker((prev) => {
+			if (prev[item.ticker]) {
+				const next = { ...prev };
+				delete next[item.ticker];
+				return next;
+			}
+			return {
+				...prev,
+				[item.ticker]: item,
+			};
+		});
+	};
 
 	const normalizedSearchTerm = useMemo(
 		() => searchTerm.trim().toLowerCase(),
@@ -216,6 +256,8 @@ export default function Stocks() {
 							setSelectedStock(item);
 							setUserSelectedTicker(item.ticker);
 						}}
+						onToggleWatchlist={handleToggleWatchlist}
+						watchlistedTickers={watchlistedTickers}
 						sortBy={sortBy}
 						onSortChange={setSortBy}
 						sortOptions={
