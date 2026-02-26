@@ -4,13 +4,12 @@ import ChartPanel, {
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
-import {
-	fetchHoldings,
-	fetchStocksList,
-	fetchStockWatchlist,
-	type HoldingsStock,
-} from "@/lib/api/stocks/list";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
+import {
+	useHoldingsQuery,
+	useStocksListQuery,
+	useStockWatchlistQuery,
+} from "@/hooks/queries/useStocksListQueries";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
@@ -38,11 +37,6 @@ export default function Stocks() {
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
-	const [allStocks, setAllStocks] = useState<StockItem[]>([]);
-	const [watchlistStocks, setWatchlistStocks] = useState<StockItem[]>([]);
-	const [holdings, setHoldings] = useState<HoldingsStock[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const navigate = useNavigate();
 
 	const listTitle = useMemo(() => {
@@ -61,9 +55,33 @@ export default function Stocks() {
 		setSortBy(nextTab === "holding" ? "eval_amount" : "change_rate");
 	};
 
+	const listSort = ["price", "change_rate", "volume"].includes(sortBy)
+		? (sortBy as "price" | "change_rate" | "volume")
+		: "change_rate";
+	const holdingsSort =
+		sortBy === "profit_rate" || sortBy === "name"
+			? (sortBy as "profit_rate" | "name")
+			: "eval_amount";
+
+	const stocksListQuery = useStocksListQuery({
+		market: "ALL",
+		sort: listSort,
+		order: "desc",
+		enabled: activeTab === "all",
+	});
+	const watchlistQuery = useStockWatchlistQuery({
+		userId: "demo_user",
+		enabled: activeTab === "watchlist",
+	});
+	const holdingsQuery = useHoldingsQuery({
+		sort: holdingsSort,
+		order: "desc",
+		enabled: activeTab === "holding",
+	});
+
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
-			return holdings.map((stock) => ({
+			return holdingsQuery.holdings.map((stock) => ({
 				ticker: stock.ticker,
 				name: stock.name,
 				current_price: stock.current_price,
@@ -76,11 +94,16 @@ export default function Stocks() {
 		}
 
 		if (activeTab === "watchlist") {
-			return watchlistStocks;
+			return watchlistQuery.stocks;
 		}
 
-		return allStocks;
-	}, [activeTab, allStocks, holdings, watchlistStocks]);
+		return stocksListQuery.stocks;
+	}, [
+		activeTab,
+		holdingsQuery.holdings,
+		stocksListQuery.stocks,
+		watchlistQuery.stocks,
+	]);
 
 	const normalizedSearchTerm = useMemo(
 		() => searchTerm.trim().toLowerCase(),
@@ -125,99 +148,18 @@ export default function Stocks() {
 		}
 	}, [activeTab, filteredStocks, sortBy]);
 
-	useEffect(() => {
-		const controller = new AbortController();
-		const listSort = ["price", "change_rate", "volume"].includes(sortBy)
-			? (sortBy as "price" | "change_rate" | "volume")
-			: "change_rate";
-
-		setIsLoading(true);
-		setError(null);
-
-		if (activeTab === "holding") {
-			fetchHoldings(
-				{
-					sort:
-						sortBy === "profit_rate" || sortBy === "name"
-							? (sortBy as "profit_rate" | "name")
-							: "eval_amount",
-					order: "desc",
-				},
-				controller.signal,
-			)
-				.then((response) => {
-					setHoldings(response.stocks ?? []);
-				})
-				.catch((err: unknown) => {
-					if (controller.signal.aborted) {
-						return;
-					}
-					const message =
-						err instanceof Error
-							? err.message
-							: "알 수 없는 오류가 발생했습니다.";
-					setError(message);
-				})
-				.finally(() => {
-					if (!controller.signal.aborted) {
-						setIsLoading(false);
-					}
-				});
-			return () => controller.abort();
-		}
-
-		if (activeTab === "watchlist") {
-			fetchStockWatchlist("demo_user", controller.signal)
-				.then((response) => {
-					setWatchlistStocks(response.stocks ?? []);
-				})
-				.catch((err: unknown) => {
-					if (controller.signal.aborted) {
-						return;
-					}
-					const message =
-						err instanceof Error
-							? err.message
-							: "알 수 없는 오류가 발생했습니다.";
-					setError(message);
-				})
-				.finally(() => {
-					if (!controller.signal.aborted) {
-						setIsLoading(false);
-					}
-				});
-			return () => controller.abort();
-		}
-
-		fetchStocksList(
-			{
-				market: "ALL",
-				sort: listSort,
-				order: "desc",
-			},
-			controller.signal,
-		)
-			.then((response) => {
-				setAllStocks(response.stocks ?? []);
-			})
-			.catch((err: unknown) => {
-				if (controller.signal.aborted) {
-					return;
-				}
-				const message =
-					err instanceof Error
-						? err.message
-						: "알 수 없는 오류가 발생했습니다.";
-				setError(message);
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) {
-					setIsLoading(false);
-				}
-			});
-
-		return () => controller.abort();
-	}, [activeTab, sortBy]);
+	const isLoading =
+		activeTab === "holding"
+			? holdingsQuery.isLoading
+			: activeTab === "watchlist"
+				? watchlistQuery.isLoading
+				: stocksListQuery.isLoading;
+	const error =
+		activeTab === "holding"
+			? holdingsQuery.errorMessage
+			: activeTab === "watchlist"
+				? watchlistQuery.errorMessage
+				: stocksListQuery.errorMessage;
 
 	useEffect(() => {
 		setSelectedStock((prev) => {
