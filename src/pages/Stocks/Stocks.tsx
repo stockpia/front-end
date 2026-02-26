@@ -9,7 +9,7 @@ import {
 	fetchStocksList,
 	fetchStockWatchlist,
 	type HoldingsStock,
-} from "@/lib/api/stocks";
+} from "@/lib/api/stocks/list";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";

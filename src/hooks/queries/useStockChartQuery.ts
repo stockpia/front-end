@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchStockChart } from "@/lib/api/stocks";
+import { fetchStockChart } from "@/lib/api/stocks/chart";
 import type { StockChartRange, StockChartType } from "@/types/stocks";
 
 type UseStockChartQueryParams = {

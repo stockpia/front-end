@@ -9,7 +9,7 @@ import {
 	fetchStockCommunity,
 	fetchStockCommunityLatest,
 	fetchStockNews,
-} from "@/lib/api/stocks";
+} from "@/lib/api/stocks/communityNews";
 import type { StockCommunityResponse } from "@/types/stockCommunityNews";
 
 const COMMUNITY_LATEST_POLL_INTERVAL_MS = 10_000;
