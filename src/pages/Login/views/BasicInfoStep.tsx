@@ -22,6 +22,15 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             placeholder="19900101"
           />
         </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm">전화번호</span>
+          <input
+            className="w-full rounded-md border px-3 py-2"
+            type="tel"
+            placeholder="01012345678"
+          />
+        </label>
       </div>
       <div className="mt-6 flex justify-end">
         <button

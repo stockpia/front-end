@@ -129,87 +129,87 @@ function convertToWeeklyVolume(
 }
 
 function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
-	const nextLayout = normalizeCandlestickLayout(figure.layout);
-	const nextData = normalizeLineData(figure.data ?? []);
-	const extremeAnnotations = buildCandlestickExtremes(nextData);
-	if (extremeAnnotations) {
-		const existing = Array.isArray(nextLayout?.annotations)
-			? nextLayout?.annotations
-			: [];
-		nextLayout.annotations = [...existing, ...extremeAnnotations];
-	}
-	return {
-		...figure,
-		data: nextData,
-		layout: nextLayout,
-	};
+  const nextLayout = normalizeCandlestickLayout(figure.layout);
+  const nextData = normalizeLineData(figure.data ?? []);
+  const extremeAnnotations = buildCandlestickExtremes(nextData);
+  if (extremeAnnotations) {
+    const existing = Array.isArray(nextLayout.annotations)
+      ? nextLayout.annotations
+      : [];
+    nextLayout.annotations = [...existing, ...extremeAnnotations];
+  }
+  return {
+    ...figure,
+    data: nextData,
+    layout: nextLayout,
+  };
 }
 
 function normalizeCandlestickLike(
 	figure: PlotlyFigure,
 	{ withExtremes }: { withExtremes: boolean },
 ): PlotlyFigure {
-	const nextLayout = normalizeCandlestickLayout(figure.layout);
-	const nextData = normalizeCandlestickData(figure.data ?? []);
+  const nextLayout = normalizeCandlestickLayout(figure.layout);
+  const nextData = normalizeCandlestickData(figure.data ?? []);
 
-	if (withExtremes) {
-		const extremeAnnotations = buildCandlestickExtremes(nextData);
-		if (extremeAnnotations) {
-			const existing = Array.isArray(nextLayout?.annotations)
-				? nextLayout?.annotations
-				: [];
-			nextLayout.annotations = [...existing, ...extremeAnnotations];
-		}
-	}
+  if (withExtremes) {
+    const extremeAnnotations = buildCandlestickExtremes(nextData);
+    if (extremeAnnotations) {
+      const existing = Array.isArray(nextLayout.annotations)
+        ? nextLayout.annotations
+        : [];
+      nextLayout.annotations = [...existing, ...extremeAnnotations];
+    }
+  }
 
-	return {
-		...figure,
-		data: nextData,
-		layout: nextLayout,
-	};
+  return {
+    ...figure,
+    data: nextData,
+    layout: nextLayout,
+  };
 }
 
 function normalizeCandlestickLayout(
-	layout: PlotlyFigure["layout"],
+  layout: PlotlyFigure["layout"],
 ): Record<string, unknown> {
-	if (!layout) {
-		layout = {};
-	}
+  if (!layout) {
+    layout = {};
+  }
 
-	const nextLayout: Record<string, unknown> = { ...layout };
-	nextLayout.showlegend = false;
-	const axisKeys = Object.keys(nextLayout).filter((key) =>
-		/^xaxis\d*$/.test(key),
-	);
-	const yAxisKeys = Object.keys(nextLayout).filter((key) =>
-		/^yaxis\d*$/.test(key),
-	);
+  const nextLayout: Record<string, unknown> = { ...layout };
+  nextLayout.showlegend = false;
+  const axisKeys = Object.keys(nextLayout).filter((key) =>
+    /^xaxis\d*$/.test(key),
+  );
+  const yAxisKeys = Object.keys(nextLayout).filter((key) =>
+    /^yaxis\d*$/.test(key),
+  );
 
-	if (axisKeys.length === 0) {
-		nextLayout.xaxis = stripAxisLabels(
-			nextLayout.xaxis as Record<string, unknown>,
-		);
-	} else {
-		axisKeys.forEach((key) => {
-			nextLayout[key] = stripAxisLabels(
-				nextLayout[key] as Record<string, unknown>,
-			);
-		});
-	}
+  if (axisKeys.length === 0) {
+    nextLayout.xaxis = stripAxisLabels(
+      nextLayout.xaxis as Record<string, unknown>,
+    );
+  } else {
+    axisKeys.forEach((key) => {
+      nextLayout[key] = stripAxisLabels(
+        nextLayout[key] as Record<string, unknown>,
+      );
+    });
+  }
 
-	if (yAxisKeys.length === 0) {
-		nextLayout.yaxis = stripAxisLabels(
-			nextLayout.yaxis as Record<string, unknown>,
-		);
-	} else {
-		yAxisKeys.forEach((key) => {
-			nextLayout[key] = stripAxisLabels(
-				nextLayout[key] as Record<string, unknown>,
-			);
-		});
-	}
+  if (yAxisKeys.length === 0) {
+    nextLayout.yaxis = stripAxisLabels(
+      nextLayout.yaxis as Record<string, unknown>,
+    );
+  } else {
+    yAxisKeys.forEach((key) => {
+      nextLayout[key] = stripAxisLabels(
+        nextLayout[key] as Record<string, unknown>,
+      );
+    });
+  }
 
-	return nextLayout;
+  return nextLayout;
 }
 
 function stripAxisLabels(axis?: Record<string, unknown>) {
