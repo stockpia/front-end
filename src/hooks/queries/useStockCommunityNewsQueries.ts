@@ -3,7 +3,7 @@ import {
   useInfiniteQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   fetchStockCommunity,
   fetchStockCommunityLatest,
@@ -199,55 +199,73 @@ export function useStockCommunityLatestPolling({
   hasSeedPage = false,
 }: UseStockCommunityLatestPollingParams) {
   const queryClient = useQueryClient();
+  const sinceRef = useRef<string | null | undefined>(since);
+  const isPollingRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !symbol || !since || !hasSeedPage) {
+    sinceRef.current = since;
+  }, [since]);
+
+  useEffect(() => {
+    if (!enabled || !symbol || !hasSeedPage) {
       return;
     }
 
     const pollLatest = async () => {
-      const latestResponse = await fetchStockCommunityLatest(symbol, { since });
-      if (latestResponse.items.length === 0) {
+      const activeSince = sinceRef.current;
+      if (!activeSince || isPollingRef.current) {
         return;
       }
+      isPollingRef.current = true;
 
-      queryClient.setQueryData<InfiniteData<StockCommunityResponse>>(
-        stockCommunityQueryKey(symbol),
-        (prev) => {
-          if (!prev || prev.pages.length === 0) {
-            return prev;
-          }
+      try {
+        const latestResponse = await fetchStockCommunityLatest(symbol, {
+          since: activeSince,
+        });
+        if (latestResponse.items.length === 0) {
+          return;
+        }
 
-          const existingIds = new Set(
-            prev.pages.flatMap((page) =>
-              page.items.map((item) => toItemIdentity(item)),
-            ),
-          );
-          const incomingItems = latestResponse.items.filter(
-            (item) => !existingIds.has(toItemIdentity(item)),
-          );
-          if (incomingItems.length === 0) {
-            return prev;
-          }
+        queryClient.setQueryData<InfiniteData<StockCommunityResponse>>(
+          stockCommunityQueryKey(symbol),
+          (prev) => {
+            if (!prev || prev.pages.length === 0) {
+              return prev;
+            }
 
-          const firstPage = prev.pages[0];
-          const nextFirstPage: StockCommunityResponse = {
-            ...firstPage,
-            items: [...incomingItems, ...firstPage.items],
-            total_count: firstPage.total_count + incomingItems.length,
-            new_count:
-              typeof latestResponse.new_count === "number"
-                ? latestResponse.new_count
-                : firstPage.new_count + incomingItems.length,
-            fetched_at: latestResponse.fetched_at || firstPage.fetched_at,
-          };
+            const existingIds = new Set(
+              prev.pages.flatMap((page) =>
+                page.items.map((item) => toItemIdentity(item)),
+              ),
+            );
+            const incomingItems = latestResponse.items.filter(
+              (item) => !existingIds.has(toItemIdentity(item)),
+            );
+            if (incomingItems.length === 0) {
+              return prev;
+            }
 
-          return {
-            ...prev,
-            pages: [nextFirstPage, ...prev.pages.slice(1)],
-          };
-        },
-      );
+            const firstPage = prev.pages[0];
+            const nextFirstPage: StockCommunityResponse = {
+              ...firstPage,
+              items: [...incomingItems, ...firstPage.items],
+              total_count: firstPage.total_count + incomingItems.length,
+              new_count:
+                typeof latestResponse.new_count === "number"
+                  ? latestResponse.new_count
+                  : firstPage.new_count + incomingItems.length,
+              fetched_at: latestResponse.fetched_at || firstPage.fetched_at,
+            };
+
+            return {
+              ...prev,
+              pages: [nextFirstPage, ...prev.pages.slice(1)],
+            };
+          },
+        );
+      } finally {
+        isPollingRef.current = false;
+      }
     };
 
     void pollLatest().catch(() => {
@@ -263,7 +281,7 @@ export function useStockCommunityLatestPolling({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [enabled, hasSeedPage, queryClient, since, symbol]);
+  }, [enabled, hasSeedPage, queryClient, symbol]);
 }
 
 export type { StockCommunityResponse, StockNewsResponse };
