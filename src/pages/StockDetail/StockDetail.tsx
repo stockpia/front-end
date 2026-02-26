@@ -52,7 +52,7 @@ export default function StockDetail() {
             <button
               type="button"
               onClick={() => setActiveInsightTab("report")}
-              className={`flex-1 rounded-full px-4 py-1.5 text-m font-semibold transition ${
+              className={`flex-1 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeInsightTab === "report"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
@@ -62,7 +62,7 @@ export default function StockDetail() {
             <button
               type="button"
               onClick={() => setActiveInsightTab("news")}
-              className={`flex-1 rounded-full px-4 py-1.5 text-m font-semibold transition ${
+              className={`flex-1 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeInsightTab === "news"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
@@ -72,7 +72,7 @@ export default function StockDetail() {
             <button
               type="button"
               onClick={() => setActiveInsightTab("community")}
-              className={`flex-1 rounded-full px-4 py-1.5 text-m font-semibold transition ${
+              className={`flex-1 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 activeInsightTab === "community"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
