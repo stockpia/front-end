@@ -3,7 +3,7 @@ type LoginStepHeaderProps = {
   totalSteps: number;
 };
 
-const STEP_LABELS = ["기본 정보", "계좌 정보", "본인 확인"];
+const STEP_LABELS = ["기본 정보", "계좌 정보"];
 
 export default function LoginStepHeader({
   currentStep,
@@ -21,7 +21,9 @@ export default function LoginStepHeader({
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div
+        className="mt-4 grid gap-2"
+        style={{ gridTemplateColumns: `repeat(${STEP_LABELS.length}, minmax(0, 1fr))` }}>
         {STEP_LABELS.map((label, index) => {
           const stepNumber = index + 1;
           const isActive = stepNumber === currentStep;
