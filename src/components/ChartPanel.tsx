@@ -1,5 +1,5 @@
 import Plotly from "plotly.js-dist-min";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import normalizePlotly, {
@@ -54,7 +54,7 @@ export default function ChartPanel({
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <header className="flex flex-col gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             Selected
@@ -64,8 +64,8 @@ export default function ChartPanel({
           </h2>
           <p className="text-sm text-slate-500">{rangeLabel} 기준</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <TypeTabs value={type} onChange={onTypeChange} />
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+          <TypeSelect value={type} onChange={onTypeChange} />
           <RangeTabs value={range} onChange={onRangeChange} />
         </div>
       </header>
@@ -89,7 +89,7 @@ type RangeTabsProps = {
 
 function RangeTabs({ value, onChange }: RangeTabsProps) {
   return (
-    <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 p-1">
+    <div className="ml-auto flex items-center gap-1 rounded-full bg-white p-0.5">
       {RANGE_OPTIONS.map((option) => {
         const isActive = option.id === value;
         return (
@@ -97,9 +97,9 @@ function RangeTabs({ value, onChange }: RangeTabsProps) {
             key={option.id}
             type="button"
             className={
-              "rounded-full px-4 py-2 text-sm font-semibold transition " +
+              "rounded-full px-3 py-1.5 text-xs font-semibold tabular-nums tracking-tight transition-colors " +
               (isActive
-                ? "bg-slate-900 text-white shadow-sm"
+                ? "bg-slate-900 text-white shadow-[0_3px_8px_-6px_rgba(15,23,42,0.8)]"
                 : "text-slate-500 hover:text-slate-900")
             }
             onClick={() => onChange(option.id)}>
@@ -111,31 +111,85 @@ function RangeTabs({ value, onChange }: RangeTabsProps) {
   );
 }
 
-type TypeTabsProps = {
+type TypeSelectProps = {
   value: ChartType;
   onChange: (type: ChartType) => void;
 };
 
-function TypeTabs({ value, onChange }: TypeTabsProps) {
+function TypeSelect({ value, onChange }: TypeSelectProps) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selected = TYPE_OPTIONS.find((option) => option.id === value);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleOutsideClick);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white p-1">
-      {TYPE_OPTIONS.map((option) => {
-        const isActive = option.id === value;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            className={
-              "rounded-full px-3 py-2 text-xs font-semibold transition " +
-              (isActive
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-500 hover:text-slate-900")
-            }
-            onClick={() => onChange(option.id)}>
-            {option.label}
-          </button>
-        );
-      })}
+    <div ref={rootRef} className="relative min-w-28">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex h-8 w-full items-center justify-between rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:text-slate-900"
+        onClick={() => setOpen((prev) => !prev)}>
+        <span>{selected?.label ?? "차트 유형"}</span>
+        <span
+          className={
+            "text-[10px] text-slate-400 transition-transform " +
+            (open ? "rotate-180" : "")
+          }>
+          ▼
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-full min-w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-[0_10px_24px_-16px_rgba(15,23,42,0.55)]">
+          <div role="listbox" className="space-y-0.5">
+            {TYPE_OPTIONS.map((option) => {
+              const isSelected = option.id === value;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={
+                    "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm font-medium transition-colors " +
+                    (isSelected
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900")
+                  }
+                  onClick={() => {
+                    onChange(option.id);
+                    setOpen(false);
+                  }}>
+                  <span className="w-3 text-xs text-slate-700">
+                    {isSelected ? "✓" : ""}
+                  </span>
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -200,20 +254,12 @@ function ChartRenderer({
     );
   }
 
-  // Debug: inspect raw plotly payload from server before any normalization.
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.info("[ChartPanel] Raw Plotly JS", plotlyJson);
-    // eslint-disable-next-line no-console
-    console.info("[ChartPanel] Raw Plotly parsed", parsedPlotly);
-  }
-
   const normalizedPlotly = normalizePlotly(parsedPlotly, {
     chartType,
   });
 
   return (
-    <div className="h-95 rounded-2xl border border-slate-200 bg-white">
+    <div className="rounded-2xl border border-slate-200 bg-white">
       {chartType === "candlestick" && (
         <div className="legend ml-3 mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
           <span>이동평균선</span>
@@ -222,26 +268,24 @@ function ChartRenderer({
           <span style={{ color: "#AF52DE" }}>60</span>
         </div>
       )}
-      <Plot
-        data={normalizedPlotly.data}
-        layout={{
-          ...(normalizedPlotly.layout ?? {}),
-          autosize: true,
-          margin: {
-            l: 40,
-            r: 24,
-            t: 24,
-            b: 56,
-            ...((normalizedPlotly.layout?.margin ?? {}) as Record<
-              string,
-              unknown
-            >),
-          },
-        }}
-        config={{ responsive: true, displayModeBar: false }}
-        useResizeHandler
-        style={{ width: "100%", height: "100%" }}
-      />
+      <div className="w-full p-1">
+        <Plot
+          data={normalizedPlotly.data}
+          layout={{
+            ...(normalizedPlotly.layout ?? {}),
+            autosize: true,
+            margin: {
+              ...((normalizedPlotly.layout?.margin ?? {}) as Record<
+                string,
+                unknown
+              >),
+            },
+          }}
+          config={{ responsive: true, displayModeBar: false }}
+          useResizeHandler
+          style={{ width: "100%" }}
+        />
+      </div>
     </div>
   );
 }

@@ -22,6 +22,7 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             placeholder="19900101"
           />
         </label>
+
         <label className="block">
           <span className="mb-1 block text-sm">전화번호</span>
           <input
