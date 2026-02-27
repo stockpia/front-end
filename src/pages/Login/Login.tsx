@@ -2,9 +2,8 @@ import { useState } from "react";
 import LoginStepHeader from "./components/LoginStepHeader";
 import AccountInfoStep from "./views/AccountInfoStep";
 import BasicInfoStep from "./views/BasicInfoStep";
-import VerificationStep from "./views/VerificationStep";
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 2;
 
 export default function Login() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -22,11 +21,7 @@ export default function Login() {
       return <BasicInfoStep onNext={goNext} />;
     }
 
-    if (currentStep === 2) {
-      return <AccountInfoStep onNext={goNext} onPrev={goPrev} />;
-    }
-
-    return <VerificationStep onPrev={goPrev} />;
+    return <AccountInfoStep onPrev={goPrev} />;
   };
 
   return (
