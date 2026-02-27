@@ -143,12 +143,12 @@ function TypeSelect({ value, onChange }: TypeSelectProps) {
   }, []);
 
   return (
-    <div ref={rootRef} className="relative min-w-28">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-8 w-full items-center justify-between rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:text-slate-900"
+        className="flex h-8 w-20 items-center justify-between rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:text-slate-900"
         onClick={() => setOpen((prev) => !prev)}>
         <span>{selected?.label ?? "차트 유형"}</span>
         <span
@@ -160,7 +160,7 @@ function TypeSelect({ value, onChange }: TypeSelectProps) {
         </span>
       </button>
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-full min-w-32 rounded-xl border border-slate-200 bg-white p-1 shadow-[0_10px_24px_-16px_rgba(15,23,42,0.55)]">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-full rounded-xl border border-slate-200 bg-white p-1 shadow-[0_10px_24px_-16px_rgba(15,23,42,0.55)]">
           <div role="listbox" className="space-y-0.5">
             {TYPE_OPTIONS.map((option) => {
               const isSelected = option.id === value;
