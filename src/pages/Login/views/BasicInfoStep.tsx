@@ -1,8 +1,17 @@
+import { useState } from "react";
+
 type BasicInfoStepProps = {
   onNext: () => void;
 };
 
 export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
+  const [name, setName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  const isNextDisabled =
+    !name.trim() || !birthDate.trim() || !phoneNumber.trim();
+
   return (
     <section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
       <div className="mt-5 space-y-8 text-left">
@@ -12,6 +21,8 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             className="w-full rounded-md border px-3 py-2"
             type="text"
             placeholder="홍길동"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
           />
         </label>
         <label className="block">
@@ -20,6 +31,8 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             className="w-full rounded-md border px-3 py-2"
             type="text"
             placeholder="19900101"
+            value={birthDate}
+            onChange={(event) => setBirthDate(event.target.value)}
           />
         </label>
 
@@ -29,6 +42,8 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             className="w-full rounded-md border px-3 py-2"
             type="tel"
             placeholder="01012345678"
+            value={phoneNumber}
+            onChange={(event) => setPhoneNumber(event.target.value)}
           />
         </label>
       </div>
@@ -36,7 +51,8 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
         <button
           type="button"
           onClick={onNext}
-          className="rounded-lg bg-primary px-5 py-2 font-medium text-primary-foreground">
+          disabled={isNextDisabled}
+          className="rounded-lg bg-primary px-5 py-2 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">
           다음
         </button>
       </div>
