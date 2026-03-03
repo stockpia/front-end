@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChartPanel, {
 	type ChartRange,
@@ -7,7 +7,9 @@ import ChartPanel, {
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
+import { useStockWatchlistQuery } from "@/hooks/queries/useStocksListQueries";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
+import type { StockItem } from "@/types/stocks";
 
 type StockInsightTab = "report" | "news" | "community";
 
@@ -19,6 +21,9 @@ export default function StockDetail() {
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [activeInsightTab, setActiveInsightTab] =
 		useState<StockInsightTab>("report");
+	const [watchlistItemsByTicker, setWatchlistItemsByTicker] = useState<
+		Record<string, StockItem>
+	>({});
 	const [openReportSections, setOpenReportSections] = useState({
 		keyPoints: false,
 		valuation: false,
@@ -39,12 +44,61 @@ export default function StockDetail() {
 		range,
 		type: chartType,
 	});
+	const watchlistQuery = useStockWatchlistQuery({
+		userId: "demo_user",
+		enabled: Boolean(stockId),
+	});
 	const stockReportQuery = useStockReportQuery({
 		symbol: stockId,
 		enabled: activeInsightTab === "report",
 	});
 
 	const report = stockReportQuery.report;
+
+	useEffect(() => {
+		if (watchlistQuery.stocks.length === 0) {
+			return;
+		}
+		setWatchlistItemsByTicker((prev) => {
+			if (Object.keys(prev).length > 0) {
+				return prev;
+			}
+			return watchlistQuery.stocks.reduce<Record<string, StockItem>>(
+				(acc, item) => {
+					acc[item.ticker] = item;
+					return acc;
+				},
+				{},
+			);
+		});
+	}, [watchlistQuery.stocks]);
+
+	const handleToggleWatchlist = () => {
+		if (!stockId) {
+			return;
+		}
+
+		setWatchlistItemsByTicker((prev) => {
+			if (prev[stockId]) {
+				const next = { ...prev };
+				delete next[stockId];
+				return next;
+			}
+
+			return {
+				...prev,
+				[stockId]: {
+					ticker: stockId,
+					name: searchParams.get("name")
+						? decodeURIComponent(searchParams.get("name") as string)
+						: stockId,
+					current_price: report?.summary.current_price ?? 0,
+					change_rate: report?.summary.price_change_pct ?? 0,
+					volume: 0,
+				},
+			};
+		});
+	};
 
 	const formatNumber = (value?: number) => {
 		if (typeof value !== "number") {
@@ -88,6 +142,9 @@ export default function StockDetail() {
 				loading={chartQuery.isLoading}
 				error={chartQuery.errorMessage}
 				plotlyJson={chartQuery.plotlyJson}
+				isWatchlisted={Boolean(stockId && watchlistItemsByTicker[stockId])}
+				onToggleWatchlist={stockId ? handleToggleWatchlist : undefined}
+				watchlistAriaLabel={`${symbolLabel} 관심 종목 추가`}
 			/>
 
 			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
