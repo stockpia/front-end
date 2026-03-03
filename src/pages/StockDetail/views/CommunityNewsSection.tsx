@@ -191,8 +191,6 @@ export default function CommunityNewsSection({
                 key={`${item.url}-${item.published_at}-${item.id}`}
                 className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span>{item.source}</span>
-                  <span>·</span>
                   <span>{item.published_at}</span>
                   <span>·</span>
                   <span

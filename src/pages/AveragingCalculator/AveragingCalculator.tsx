@@ -1,4 +1,4 @@
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAveragingCalculator } from "@/hooks/useAveragingCalculator";
 
 const KRW_NUMBER = new Intl.NumberFormat("ko-KR");
@@ -40,6 +40,7 @@ export default function AveragingCalculator() {
     calcResult,
     history,
     calculatedQuantity,
+    canCalculate,
     canSave,
     hasInputError,
     holdingLoading,
@@ -57,6 +58,7 @@ export default function AveragingCalculator() {
     setBuyAmountInput,
     connectAccount,
     resetCalculation,
+    runCalculation,
     saveCurrentCalculation,
     applyHistory,
   } = useAveragingCalculator(symbol);
@@ -93,7 +95,9 @@ export default function AveragingCalculator() {
 
       {accountConnected && holdingLoading && (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 text-center">
-          <p className="text-sm text-slate-600">보유 정보를 불러오는 중입니다.</p>
+          <p className="text-sm text-slate-600">
+            보유 정보를 불러오는 중입니다.
+          </p>
         </section>
       )}
 
@@ -103,15 +107,18 @@ export default function AveragingCalculator() {
         </section>
       )}
 
-      {accountConnected && !holdingLoading && !holdingErrorMessage && !isHolding && (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 text-center">
-          <p className="text-sm text-slate-600">
-            {holdingData?.is_holding === false
-              ? holdingData.message
-              : "현재 보유 중인 종목이 없습니다."}
-          </p>
-        </section>
-      )}
+      {accountConnected &&
+        !holdingLoading &&
+        !holdingErrorMessage &&
+        !isHolding && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 text-center">
+            <p className="text-sm text-slate-600">
+              {holdingData?.is_holding === false
+                ? holdingData.message
+                : "현재 보유 중인 종목이 없습니다."}
+            </p>
+          </section>
+        )}
 
       {accountConnected &&
         !holdingLoading &&
@@ -199,7 +206,9 @@ export default function AveragingCalculator() {
                       </span>
                       <input
                         value={buyPriceInput}
-                        onChange={(event) => setBuyPriceInput(event.target.value)}
+                        onChange={(event) =>
+                          setBuyPriceInput(event.target.value)
+                        }
                         inputMode="decimal"
                         placeholder={String(defaultBuyPrice)}
                         className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
@@ -257,6 +266,18 @@ export default function AveragingCalculator() {
                     )}
                   </div>
 
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void runCalculation();
+                      }}
+                      disabled={!canCalculate || calculationLoading}
+                      className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                      {calculationLoading ? "계산 중..." : "계산하기"}
+                    </button>
+                  </div>
+
                   <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-slate-600">기존 평균 단가</p>
@@ -299,10 +320,14 @@ export default function AveragingCalculator() {
                         </p>
                       </div>
                       <div className="rounded-xl bg-white p-3">
-                        <p className="text-xs text-slate-500">현재가 기준 손익</p>
+                        <p className="text-xs text-slate-500">
+                          현재가 기준 손익
+                        </p>
                         <p className="mt-1 font-semibold text-slate-900">
                           {calcResult
-                            ? formatCurrency(calcResult.result.profit_if_sell_now)
+                            ? formatCurrency(
+                                calcResult.result.profit_if_sell_now,
+                              )
                             : "-"}
                         </p>
                       </div>
@@ -335,12 +360,14 @@ export default function AveragingCalculator() {
                     )}
 
                     {saveErrorMessage && (
-                      <p className="text-xs text-rose-600">{saveErrorMessage}</p>
+                      <p className="text-xs text-rose-600">
+                        {saveErrorMessage}
+                      </p>
                     )}
 
                     {hasInputError && (
                       <p className="text-xs text-rose-600">
-                        입력값을 확인하면 결과가 실시간으로 반영됩니다.
+                        입력값을 확인한 뒤 계산하기 버튼을 눌러주세요.
                       </p>
                     )}
                   </section>
@@ -361,11 +388,13 @@ export default function AveragingCalculator() {
                     </div>
                   )}
 
-                  {!historyLoading && !historyErrorMessage && history.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600">
-                      저장된 계산 내역이 없습니다.
-                    </div>
-                  )}
+                  {!historyLoading &&
+                    !historyErrorMessage &&
+                    history.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-600">
+                        저장된 계산 내역이 없습니다.
+                      </div>
+                    )}
 
                   {!historyLoading &&
                     !historyErrorMessage &&
@@ -407,7 +436,7 @@ export default function AveragingCalculator() {
                   type="button"
                   onClick={() => setMainTab("history")}
                   className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
-                  이전 계산 보기
+                  계산 기록 보기
                 </button>
                 <button
                   type="button"

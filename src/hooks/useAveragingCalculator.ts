@@ -43,23 +43,6 @@ export function averagingHistoryQueryKey(symbol: string, limit: number) {
 	return ["averaging-history", symbol, limit] as const;
 }
 
-export function averagingCalculateQueryKey(params: {
-	symbol: string;
-	mode: InputMode;
-	additionalPrice: number;
-	additionalQuantity: number | null;
-	investmentAmount: number | null;
-}) {
-	return [
-		"averaging-calculate",
-		params.symbol,
-		params.mode,
-		params.additionalPrice,
-		params.additionalQuantity,
-		params.investmentAmount,
-	] as const;
-}
-
 export function useAveragingCalculator(symbol: string) {
 	const queryClient = useQueryClient();
 
@@ -110,16 +93,8 @@ export function useAveragingCalculator(symbol: string) {
 			? Boolean(buyQuantity) && !buyQuantityError
 			: Boolean(buyAmount) && !buyAmountError);
 
-	const calculationQuery = useQuery({
-		queryKey: averagingCalculateQueryKey({
-			symbol,
-			mode: inputMode,
-			additionalPrice: buyPrice,
-			additionalQuantity: buyQuantity,
-			investmentAmount: buyAmount,
-		}),
-		enabled: canCalculate,
-		queryFn: () => {
+	const calculationMutation = useMutation({
+		mutationFn: async () => {
 			if (inputMode === "quantity") {
 				return calculateByQuantity({
 					symbol,
@@ -171,9 +146,9 @@ export function useAveragingCalculator(symbol: string) {
 		},
 	});
 
-	const calcResult = (calculationQuery.data ?? null) as CalcResponse | null;
-	const history =
-		(historyQuery.data?.calculations ?? []) as CalculationHistoryResponse["calculations"];
+	const calcResult = (calculationMutation.data ?? null) as CalcResponse | null;
+	const history = (historyQuery.data?.calculations ??
+		[]) as CalculationHistoryResponse["calculations"];
 
 	const calculatedQuantity = useMemo(() => {
 		if (calcResult?.calculation_mode === "amount") {
@@ -187,11 +162,11 @@ export function useAveragingCalculator(symbol: string) {
 
 	const canSave = Boolean(
 		isHolding &&
-		calcResult &&
-		!buyPriceError &&
-		!buyQuantityError &&
-		!buyAmountError &&
-		!saveMutation.isPending,
+			calcResult &&
+			!buyPriceError &&
+			!buyQuantityError &&
+			!buyAmountError &&
+			!saveMutation.isPending,
 	);
 
 	const hasInputError = buyPriceError || buyQuantityError || buyAmountError;
@@ -210,7 +185,9 @@ export function useAveragingCalculator(symbol: string) {
 		setMainTab("calculate");
 	};
 
-	const applyHistory = (item: CalculationHistoryResponse["calculations"][number]) => {
+	const applyHistory = (
+		item: CalculationHistoryResponse["calculations"][number],
+	) => {
 		setInputMode(item.calculation_mode);
 		if (
 			item.calculation_mode === "quantity" &&
@@ -237,6 +214,13 @@ export function useAveragingCalculator(symbol: string) {
 		await saveMutation.mutateAsync(calcResult);
 	};
 
+	const runCalculation = async () => {
+		if (!canCalculate || calculationMutation.isPending) {
+			return;
+		}
+		await calculationMutation.mutateAsync();
+	};
+
 	return {
 		accountConnected,
 		mainTab,
@@ -255,6 +239,7 @@ export function useAveragingCalculator(symbol: string) {
 		calcResult,
 		history,
 		calculatedQuantity,
+		canCalculate,
 		canSave,
 		hasInputError,
 		holdingLoading: holdingQuery.isLoading,
@@ -262,9 +247,9 @@ export function useAveragingCalculator(symbol: string) {
 			holdingQuery.error,
 			"보유 종목 정보를 불러오는 중 오류가 발생했습니다.",
 		),
-		calculationLoading: calculationQuery.isFetching,
+		calculationLoading: calculationMutation.isPending,
 		calculationErrorMessage: toErrorMessage(
-			calculationQuery.error,
+			calculationMutation.error,
 			"계산 중 오류가 발생했습니다.",
 		),
 		historyLoading: historyQuery.isLoading,
@@ -284,6 +269,7 @@ export function useAveragingCalculator(symbol: string) {
 		setBuyAmountInput,
 		connectAccount,
 		resetCalculation,
+		runCalculation,
 		saveCurrentCalculation,
 		applyHistory,
 	};
