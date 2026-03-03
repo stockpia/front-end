@@ -164,7 +164,7 @@ export default function StockDetail() {
 									<h4 className="mt-3 text-base font-semibold text-slate-900">
 										투자 요약
 									</h4>
-									<p className="mt-2 text-sm leading-6 text-slate-700">
+									<p className="mt-2 text-sm leading-7 text-slate-700">
 										{report.summary.investment_summary}
 									</p>
 									<div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
@@ -215,14 +215,14 @@ export default function StockDetail() {
 									</button>
 									{openReportSections.keyPoints && (
 										<>
-											<ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+											<ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
 												{report.sections.investment_summary.key_points.map(
 													(point) => (
 														<li key={point}>{point}</li>
 													),
 												)}
 											</ul>
-											<p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
+											<p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm leading-7 text-slate-700">
 												체크포인트:{" "}
 												{report.sections.investment_summary.checkpoint}
 											</p>
@@ -276,7 +276,7 @@ export default function StockDetail() {
 													</div>
 												</div>
 											</div>
-											<p className="mt-4 text-sm text-slate-700">
+											<p className="mt-4 text-sm leading-7 text-slate-700">
 												{report.sections.valuation.interpretation}
 											</p>
 										</>
@@ -302,12 +302,12 @@ export default function StockDetail() {
 										</span>
 									</button>
 									{openReportSections.opinion && (
-										<div className="mt-3 grid gap-4 md:grid-cols-2">
+										<div className="mt-3 grid gap-4">
 											<div>
 												<div className="text-xs font-semibold text-emerald-700">
 													장점
 												</div>
-												<ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+												<ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
 													{report.sections.investment_opinion.pros.map(
 														(item) => (
 															<li key={item}>{item}</li>
@@ -319,7 +319,7 @@ export default function StockDetail() {
 												<div className="text-xs font-semibold text-rose-700">
 													유의점
 												</div>
-												<ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+												<ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
 													{report.sections.investment_opinion.cons.map(
 														(item) => (
 															<li key={item}>{item}</li>
