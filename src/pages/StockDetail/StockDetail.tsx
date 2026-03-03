@@ -4,6 +4,7 @@ import ChartPanel, {
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
@@ -131,8 +132,8 @@ export default function StockDetail() {
 				{activeInsightTab === "report" && (
 					<div className="mt-6 space-y-4">
 						{stockReportQuery.isLoading && (
-							<div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-								종목 리포트를 불러오는 중입니다.
+							<div className="flex justify-center py-4">
+								<LoadingSpinner label="종목 리포트를 불러오는 중..." />
 							</div>
 						)}
 						{stockReportQuery.isError && (
