@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChartPanel, {
 	type ChartRange,
@@ -7,7 +7,9 @@ import ChartPanel, {
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
+import { useStockWatchlistQuery } from "@/hooks/queries/useStocksListQueries";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
+import type { StockItem } from "@/types/stocks";
 
 type StockInsightTab = "report" | "news" | "community";
 
@@ -19,6 +21,9 @@ export default function StockDetail() {
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [activeInsightTab, setActiveInsightTab] =
 		useState<StockInsightTab>("report");
+	const [watchlistItemsByTicker, setWatchlistItemsByTicker] = useState<
+		Record<string, StockItem>
+	>({});
 	const [openReportSections, setOpenReportSections] = useState({
 		keyPoints: false,
 		valuation: false,
@@ -39,12 +44,61 @@ export default function StockDetail() {
 		range,
 		type: chartType,
 	});
+	const watchlistQuery = useStockWatchlistQuery({
+		userId: "demo_user",
+		enabled: Boolean(stockId),
+	});
 	const stockReportQuery = useStockReportQuery({
 		symbol: stockId,
 		enabled: activeInsightTab === "report",
 	});
 
 	const report = stockReportQuery.report;
+
+	useEffect(() => {
+		if (watchlistQuery.stocks.length === 0) {
+			return;
+		}
+		setWatchlistItemsByTicker((prev) => {
+			if (Object.keys(prev).length > 0) {
+				return prev;
+			}
+			return watchlistQuery.stocks.reduce<Record<string, StockItem>>(
+				(acc, item) => {
+					acc[item.ticker] = item;
+					return acc;
+				},
+				{},
+			);
+		});
+	}, [watchlistQuery.stocks]);
+
+	const handleToggleWatchlist = () => {
+		if (!stockId) {
+			return;
+		}
+
+		setWatchlistItemsByTicker((prev) => {
+			if (prev[stockId]) {
+				const next = { ...prev };
+				delete next[stockId];
+				return next;
+			}
+
+			return {
+				...prev,
+				[stockId]: {
+					ticker: stockId,
+					name: searchParams.get("name")
+						? decodeURIComponent(searchParams.get("name") as string)
+						: stockId,
+					current_price: report?.summary.current_price ?? 0,
+					change_rate: report?.summary.price_change_pct ?? 0,
+					volume: 0,
+				},
+			};
+		});
+	};
 
 	const formatNumber = (value?: number) => {
 		if (typeof value !== "number") {
@@ -88,6 +142,9 @@ export default function StockDetail() {
 				loading={chartQuery.isLoading}
 				error={chartQuery.errorMessage}
 				plotlyJson={chartQuery.plotlyJson}
+				isWatchlisted={Boolean(stockId && watchlistItemsByTicker[stockId])}
+				onToggleWatchlist={stockId ? handleToggleWatchlist : undefined}
+				watchlistAriaLabel={`${symbolLabel} 관심 종목 추가`}
 			/>
 
 			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
@@ -164,7 +221,7 @@ export default function StockDetail() {
 									<h4 className="mt-3 text-base font-semibold text-slate-900">
 										투자 요약
 									</h4>
-									<p className="mt-2 text-sm leading-6 text-slate-700">
+									<p className="mt-2 text-sm leading-7 text-slate-700">
 										{report.summary.investment_summary}
 									</p>
 									<div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
@@ -215,14 +272,14 @@ export default function StockDetail() {
 									</button>
 									{openReportSections.keyPoints && (
 										<>
-											<ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+											<ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
 												{report.sections.investment_summary.key_points.map(
 													(point) => (
 														<li key={point}>{point}</li>
 													),
 												)}
 											</ul>
-											<p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
+											<p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm leading-7 text-slate-700">
 												체크포인트:{" "}
 												{report.sections.investment_summary.checkpoint}
 											</p>
@@ -276,7 +333,7 @@ export default function StockDetail() {
 													</div>
 												</div>
 											</div>
-											<p className="mt-4 text-sm text-slate-700">
+											<p className="mt-4 text-sm leading-7 text-slate-700">
 												{report.sections.valuation.interpretation}
 											</p>
 										</>
@@ -302,12 +359,12 @@ export default function StockDetail() {
 										</span>
 									</button>
 									{openReportSections.opinion && (
-										<div className="mt-3 grid gap-4 md:grid-cols-2">
+										<div className="mt-3 grid gap-4">
 											<div>
 												<div className="text-xs font-semibold text-emerald-700">
 													장점
 												</div>
-												<ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+												<ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
 													{report.sections.investment_opinion.pros.map(
 														(item) => (
 															<li key={item}>{item}</li>
@@ -319,7 +376,7 @@ export default function StockDetail() {
 												<div className="text-xs font-semibold text-rose-700">
 													유의점
 												</div>
-												<ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+												<ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
 													{report.sections.investment_opinion.cons.map(
 														(item) => (
 															<li key={item}>{item}</li>

@@ -283,6 +283,12 @@ export default function Stocks() {
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
+					isWatchlisted={watchlistedTickers.has(effectiveSelectedStock.ticker)}
+					onToggleWatchlist={() =>
+						handleToggleWatchlist(effectiveSelectedStock)
+					}
+					watchlistAriaLabel={`${effectiveSelectedStock.name} 관심 종목 추가`}
+					showWatchlistButton
 				/>
 			) : (
 				<ChartPanel
@@ -294,6 +300,9 @@ export default function Stocks() {
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
+					showWatchlistButton
+					watchlistDisabled
+					watchlistAriaLabel="종목 선택 후 관심 종목 추가"
 				/>
 			)}
 		</div>
