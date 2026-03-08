@@ -1,10 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
 import {
-  AI_SUGGESTED_QUESTIONS,
-  AI_WELCOME_MESSAGE,
-  type AiMessage,
-  buildAiAnswer,
   getDetailedReport,
   getTradeRecords,
   TRADE_PERIOD_OPTIONS,
@@ -13,12 +8,8 @@ import {
 } from "@/mocks/tradeDetail";
 
 export default function TradeDetail() {
-  const { userId } = useParams();
   const [selectedScopeId, setSelectedScopeId] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<TradePeriod>("1m");
-  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
-  const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<AiMessage[]>([AI_WELCOME_MESSAGE]);
 
   const selectedScope = useMemo(
     () =>
@@ -49,65 +40,46 @@ export default function TradeDetail() {
 
   const formatRatio = (value: number) => `${value.toFixed(1)}%`;
 
-  const handleAskQuestion = (question: string) => {
-    const assistantAnswer = buildAiAnswer(question, report);
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: question },
-      { role: "assistant", content: assistantAnswer },
-    ]);
-  };
-
-  const handleSendMessage = () => {
-    const normalized = chatInput.trim();
-    if (!normalized) {
-      return;
-    }
-    handleAskQuestion(normalized);
-    setChatInput("");
-  };
-
   return (
-    <>
-      <div className="space-y-5 py-6">
-        <header className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
-          <h1 className="mt-1 text-lg font-semibold text-slate-900">
-            거래내역 상세 리포트
-          </h1>
-        </header>
+    <div className="space-y-5 py-6">
+      <header className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
+        <h1 className="mt-1 text-lg font-semibold text-slate-900">
+          거래내역 상세 리포트
+        </h1>
+      </header>
 
-        <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:gap-4">
-          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
-            <p className="text-xs font-semibold text-slate-500">종목 선택</p>
-            <div className="mt-3 space-y-2">
-              {TRADE_SCOPE_OPTIONS.map((scope) => {
-                const active = scope.id === selectedScopeId;
-                const scopeReport = getDetailedReport(scope.id, selectedPeriod);
-                return (
-                  <button
-                    key={scope.id}
-                    type="button"
-                    onClick={() => setSelectedScopeId(scope.id)}
-                    className={`w-full rounded-2xl border px-3 py-2 text-left transition ${
-                      active
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+      <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:gap-4">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
+          <p className="text-xs font-semibold text-slate-500">종목 선택</p>
+          <div className="mt-3 space-y-2">
+            {TRADE_SCOPE_OPTIONS.map((scope) => {
+              const active = scope.id === selectedScopeId;
+              const scopeReport = getDetailedReport(scope.id, selectedPeriod);
+              return (
+                <button
+                  key={scope.id}
+                  type="button"
+                  onClick={() => setSelectedScopeId(scope.id)}
+                  className={`w-full rounded-2xl border px-3 py-2 text-left transition ${
+                    active
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>{scope.label}</span>
+                  </div>
+                  <p
+                    className={`mt-1 text-xs ${
+                      active ? "text-slate-300" : "text-slate-500"
                     }`}>
-                    <div className="flex items-center justify-between text-sm font-semibold">
-                      <span>{scope.label}</span>
-                    </div>
-                    <p
-                      className={`mt-1 text-xs ${
-                        active ? "text-slate-300" : "text-slate-500"
-                      }`}>
-                      {" "}
-                      {formatCurrency(scopeReport.summary.realizedProfit)}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+                    {" "}
+                    {formatCurrency(scopeReport.summary.realizedProfit)}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
             <div className="flex items-center justify-between">
@@ -354,94 +326,7 @@ export default function TradeDetail() {
             )}
           </div>
 
-          <button
-            type="button"
-            className="mt-4 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">
-            요약 리포트 챗봇으로 보기
-          </button>
         </section>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setIsAiPanelOpen(true)}
-        className="fixed right-6 bottom-6 z-30 rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-slate-800">
-        주토피아 AI
-      </button>
-
-      {isAiPanelOpen && (
-        <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[420px] flex-col border-l border-slate-200 bg-white shadow-2xl">
-          <div className="flex items-start justify-between border-b border-slate-200 px-4 py-4">
-            <div>
-              <p className="text-base font-semibold text-slate-900">
-                주토피아 AI
-              </p>
-              <p className="text-xs text-slate-500">
-                {selectedScope.label} · 최근 {selectedPeriodLabel} 기준
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsAiPanelOpen(false)}
-              className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
-              닫기
-            </button>
-          </div>
-
-          <div className="border-b border-slate-200 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-500">추천 질문</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {AI_SUGGESTED_QUESTIONS.map((question) => (
-                <button
-                  key={question}
-                  type="button"
-                  onClick={() => handleAskQuestion(question)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100">
-                  {question}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-            {messages.map((message, idx) => (
-              <div
-                key={`${message.role}-${idx}`}
-                className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm leading-6 ${
-                  message.role === "assistant"
-                    ? "bg-slate-100 text-slate-800"
-                    : "ml-auto bg-slate-900 text-white"
-                }`}>
-                <p className="whitespace-pre-line">{message.content}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-slate-200 p-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="리포트에서 궁금한 점을 입력하세요"
-                className="h-10 flex-1 rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
-              />
-              <button
-                type="button"
-                onClick={handleSendMessage}
-                className="h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white">
-                전송
-              </button>
-            </div>
-          </div>
-        </aside>
-      )}
-    </>
   );
 }
