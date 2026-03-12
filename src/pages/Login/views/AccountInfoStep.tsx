@@ -116,7 +116,7 @@ export default function AccountInfoStep({ onPrev }: AccountInfoStepProps) {
         onClose={() => setIsSuccessModalOpen(false)}
         title="계좌 연결이 완료됐어요 !"
         description={
-          "이제 주토피아에서\n보유 종목/거래내역 기반 리포트를\n바로 확인할 수 있어요!"
+          "이제 주토피아에서\n해당 계좌를 기반으로\n다양한 리포트와 서비스를\n사용할 수 있어요 😁"
         }
         actionLabel="메인 화면으로"
         onAction={() => navigate("/")}
