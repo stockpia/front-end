@@ -1,6 +1,8 @@
 import Plotly from "plotly.js-dist-min";
 import { useEffect, useMemo, useRef, useState } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
+import { Info } from "lucide-react";
+import CommonModal from "@/components/CommonModal";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import normalizePlotly, {
   type PlotlyFigure,
@@ -25,6 +27,44 @@ const TYPE_OPTIONS = [
 ] as const;
 
 export type ChartType = (typeof TYPE_OPTIONS)[number]["id"];
+
+const CHART_TYPE_CONTENT: Record<
+  ChartType,
+  {
+    label: string;
+    summary: string;
+    details: string[];
+  }
+> = {
+  line: {
+    label: "라인",
+    summary:
+      "하루의 최종 가격인 종가만 점으로 찍어 선으로 연결한 차트예요. 전체 흐름을 한눈에 볼 수 있어요!",
+    details: [
+      "장이 끝날 때의 가격인 종가만 점으로 찍어 선으로 이은 차트예요.",
+      "장중의 복잡한 움직임은 덜어내고, 주가가 장기적으로 오르는지 내리는지 큰 추세를 파악할 때 가장 보기 편해요.",
+    ],
+  },
+  candlestick: {
+    label: "캔들",
+    summary:
+      "주식에서 가장 많이 사용하는 차트로, 하루 동안 가격이 어떻게 움직였는지 시작가·종가·최고가·최저가를 양초 모양으로 보여줘요!",
+    details: [
+      "주식에서 가장 많이 쓰는 차트예요.",
+      "빨간색 양봉은 시작할 때보다 가격이 올랐다는 뜻이고, 파란색 음봉은 내렸다는 뜻이에요.",
+      "꼬리 길이를 통해 하루 동안 주가가 얼마나 크게 흔들렸는지 상세한 변동성을 알 수 있어요.",
+    ],
+  },
+  technical: {
+    label: "기술",
+    summary:
+      "과거 데이터를 분석해서 지금이 살 때인지 팔 때인지 힌트를 주는 보조 지표 차트예요!",
+    details: [
+      "단순한 가격 변동을 넘어, 이동평균선이나 거래량 같은 값을 계산해 그래프로 나타낸 차트예요.",
+      "지금 주식이 과열됐는지, 바닥에 가까운지 판단해 매수·매도 타이밍을 잡고 싶을 때 활용하면 좋아요.",
+    ],
+  },
+};
 
 export type ChartPanelProps = {
   symbol: string;
@@ -61,6 +101,7 @@ export default function ChartPanel({
     () => RANGE_OPTIONS.find((option) => option.id === range)?.label ?? "",
     [range],
   );
+  const chartTypeContent = CHART_TYPE_CONTENT[type];
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
@@ -103,6 +144,7 @@ export default function ChartPanel({
           <TypeSelect value={type} onChange={onTypeChange} />
           <RangeTabs value={range} onChange={onRangeChange} />
         </div>
+        <ChartTypeGuide content={chartTypeContent} />
       </header>
 
       <div className="mt-6">
@@ -114,6 +156,62 @@ export default function ChartPanel({
         />
       </div>
     </section>
+  );
+}
+
+type ChartTypeGuideProps = {
+  content: {
+    label: string;
+    summary: string;
+    details: string[];
+  };
+};
+
+function ChartTypeGuide({ content }: ChartTypeGuideProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2">
+        <p className="text-xs leading-5 text-slate-600">
+          <span className="mr-1 font-semibold text-slate-900">
+            {content.label}
+          </span>
+          {content.summary}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={`${content.label} 차트 상세 설명 보기`}
+            className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full align-top text-slate-500 transition hover:border-slate-300 hover:text-slate-900">
+            <Info className="h-3 w-3" />
+          </button>
+        </p>
+      </div>
+
+      <CommonModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={`${content.label} 차트란?`}
+        actionLabel="확인"
+        onAction={() => setOpen(false)}
+        icon={<Info className="h-6 w-6 text-sky-600" />}
+        className="max-w-lg text-left">
+        <div className="relative mt-6 space-y-3 text-left">
+          {content.details.map((detail, index) => (
+            <div
+              key={detail}
+              className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                {index + 1}
+              </div>
+              <p className="pt-0.5 text-sm leading-6 text-slate-700">
+                {detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      </CommonModal>
+    </>
   );
 }
 

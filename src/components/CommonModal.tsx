@@ -5,7 +5,7 @@ type CommonModalProps = {
   open: boolean;
   onClose?: () => void;
   title: string;
-  description: ReactNode;
+  description?: ReactNode;
   actionLabel: string;
   onAction: () => void;
   secondaryActionLabel?: string;
