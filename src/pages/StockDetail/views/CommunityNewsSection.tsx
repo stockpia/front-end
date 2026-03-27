@@ -172,6 +172,12 @@ export default function CommunityNewsSection({
               {communityErrorMessage}
             </div>
           )}
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-semibold text-emerald-600">POSITIVE</span>,{" "}
+            <span className="font-semibold text-amber-500">NEUTRAL</span>,{" "}
+            <span className="font-semibold text-rose-500">NEGATIVE</span>는
+            커뮤니티 내용의 긍정, 중립, 부정을 의미해요 !
+          </div>
           {communityFirstPage?.ai_summary && (
             <article className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
               <div className="text-xs font-semibold text-slate-500">
@@ -262,10 +268,6 @@ export default function CommunityNewsSection({
                   <span>{item.source}</span>
                   <span>·</span>
                   <span>{item.published_at}</span>
-                  <span>·</span>
-                  <span className="font-semibold text-slate-600">
-                    {item.is_investment_related ? "투자관련" : "기타"}
-                  </span>
                 </div>
                 <h4 className="mt-2 text-sm font-semibold text-slate-900">
                   {item.title}

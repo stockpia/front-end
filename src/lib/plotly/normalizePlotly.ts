@@ -311,13 +311,27 @@ function normalizeCandlestickData(data: unknown[]): unknown[] {
         showlegend: false,
         marker: {
           ...marker,
-          color: "#94a3b8",
+          color: resolveVolumeMarkerColor(marker),
         },
       };
     }
 
     return trace;
   });
+}
+
+function resolveVolumeMarkerColor(marker: Record<string, unknown>) {
+  const markerColor = marker.color;
+
+  if (Array.isArray(markerColor) && markerColor.length > 0) {
+    return markerColor;
+  }
+
+  if (typeof markerColor === "string" && markerColor.trim().length > 0) {
+    return markerColor;
+  }
+
+  return "#94a3b8";
 }
 
 function normalizeLineData(data: unknown[]): unknown[] {

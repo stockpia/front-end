@@ -16,7 +16,7 @@ import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
 import type { StockItem, StockSort } from "@/types/stocks";
 
 const STOCK_SORT_OPTIONS: { value: StockSort; label: string }[] = [
-	{ value: "price", label: "주가순" },
+	// { value: "price", label: "주가순" },
 	{ value: "change_rate", label: "상승률순" },
 	{ value: "volume", label: "거래량순" },
 ];
@@ -79,7 +79,7 @@ export default function Stocks() {
 	const holdingsQuery = useHoldingsQuery({
 		sort: holdingsSort,
 		order: "desc",
-		enabled: activeTab === "holding",
+		enabled: true,
 	});
 
 	useEffect(() => {
@@ -224,6 +224,9 @@ export default function Stocks() {
 		range,
 		type: chartType,
 	});
+	const selectedNameParam = effectiveSelectedStock
+		? encodeURIComponent(effectiveSelectedStock.name)
+		: "";
 
 	return (
 		<div className="space-y-8 py-8">
@@ -289,6 +292,33 @@ export default function Stocks() {
 					}
 					watchlistAriaLabel={`${effectiveSelectedStock.name} 관심 종목 추가`}
 					showWatchlistButton
+					footer={
+						<section className="grid grid-cols-2 gap-4">
+							<button
+								type="button"
+								onClick={() =>
+									navigate(
+										`/stocks/${effectiveSelectedStock.ticker}/sell?name=${selectedNameParam}`,
+									)
+								}
+								className="rounded-[28px] border border-emerald-200 bg-emerald-50 px-5 py-5 text-center text-base font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100/80"
+							>
+								판매하기
+							</button>
+
+							<button
+								type="button"
+								onClick={() =>
+									navigate(
+										`/stocks/${effectiveSelectedStock.ticker}/buy?name=${selectedNameParam}`,
+									)
+								}
+								className="rounded-[28px] border border-blue-200 bg-blue-50 px-5 py-5 text-center text-base font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100/80"
+							>
+								구매하기
+							</button>
+						</section>
+					}
 				/>
 			) : (
 				<ChartPanel
@@ -303,8 +333,50 @@ export default function Stocks() {
 					showWatchlistButton
 					watchlistDisabled
 					watchlistAriaLabel="종목 선택 후 관심 종목 추가"
+					footer={
+						<section className="grid grid-cols-2 gap-4">
+							<button
+								type="button"
+								disabled
+								className="rounded-[28px] border border-slate-200 bg-slate-100 px-5 py-5 text-center text-base font-semibold text-slate-400"
+							>
+								판매하기
+							</button>
+
+							<button
+								type="button"
+								disabled
+								className="rounded-[28px] border border-slate-200 bg-slate-100 px-5 py-5 text-center text-base font-semibold text-slate-400"
+							>
+								구매하기
+							</button>
+						</section>
+					}
 				/>
 			)}
+
+			<button
+				type="button"
+				onClick={() => navigate("/trades/demo_user")}
+				className="w-full rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] transition hover:border-slate-300 hover:shadow-[0_24px_70px_-42px_rgba(15,23,42,0.7)]"
+			>
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+							My Portfolio
+						</p>
+						<h2 className="mt-2 text-lg font-semibold text-slate-900">
+							내 투자 현황
+						</h2>
+						<p className="mt-1 text-sm text-slate-500">
+							거래 흐름과 상세 리포트를 확인하세요.
+						</p>
+					</div>
+					<span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+						상세 보기
+					</span>
+				</div>
+			</button>
 		</div>
 	);
 }
