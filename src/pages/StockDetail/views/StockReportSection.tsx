@@ -78,9 +78,7 @@ export default function StockReportSection({
               <span>·</span>
               <span>{report.symbol}</span>
               <span>·</span>
-              <span>
-                리포트 생성 시각: {formatGeneratedAt(report.generated_at)}
-              </span>
+              <span>{formatGeneratedAt(report.generated_at)}</span>
             </div>
             <h4 className="mt-3 text-base font-semibold text-slate-900">
               투자 요약

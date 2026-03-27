@@ -416,14 +416,16 @@ export default function AveragingCalculator() {
                 type="button"
                 onClick={resetCalculation}
                 className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
-                새 계산
+                {mainTab === "history" ? "이전으로" : "새 계산"}
               </button>
-              <button
-                type="button"
-                onClick={() => setMainTab("history")}
-                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
-                계산 기록 보기
-              </button>
+              {mainTab !== "history" && (
+                <button
+                  type="button"
+                  onClick={() => setMainTab("history")}
+                  className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
+                  계산 기록 보기
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => navigate(-1)}
