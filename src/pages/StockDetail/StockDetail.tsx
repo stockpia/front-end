@@ -51,6 +51,23 @@ export default function StockDetail() {
 	const report = stockReportQuery.report;
 
 	useEffect(() => {
+		if (activeInsightTab !== "report") {
+			return;
+		}
+
+		if (report) {
+			console.log("[StockDetail] stock report response:", report);
+		}
+
+		if (stockReportQuery.error) {
+			console.error(
+				"[StockDetail] stock report error:",
+				stockReportQuery.error,
+			);
+		}
+	}, [activeInsightTab, report, stockReportQuery.error]);
+
+	useEffect(() => {
 		if (watchlistQuery.stocks.length === 0) {
 			return;
 		}

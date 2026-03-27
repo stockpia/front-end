@@ -79,7 +79,7 @@ export default function Stocks() {
   const holdingsQuery = useHoldingsQuery({
     sort: holdingsSort,
     order: "desc",
-    enabled: activeTab === "holding",
+    enabled: true,
   });
 
   useEffect(() => {
@@ -305,6 +305,29 @@ export default function Stocks() {
           watchlistAriaLabel="종목 선택 후 관심 종목 추가"
         />
       )}
+
+      <button
+        type="button"
+        onClick={() => navigate("/trades/demo_user")}
+        className="w-full rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] transition hover:border-slate-300 hover:shadow-[0_24px_70px_-42px_rgba(15,23,42,0.7)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              My Portfolio
+            </p>
+            <h2 className="mt-2 text-lg font-semibold text-slate-900">
+              내 투자 현황
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              거래 흐름과 상세 리포트를 확인하세요.
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+            상세 보기
+          </span>
+        </div>
+      </button>
     </div>
   );
 }
