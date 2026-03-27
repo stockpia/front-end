@@ -4,6 +4,7 @@ import Login from "@/pages/Login/Login";
 import StockDetail from "@/pages/StockDetail/StockDetail";
 import Stocks from "@/pages/Stocks/Stocks";
 import TradeAction from "@/pages/TradeAction/TradeAction";
+import TradePendingList from "@/pages/TradePendingList/TradePendingList";
 import TradeDetail from "@/pages/TradeDetail/TradeDetail";
 
 export default function AppRouter() {
@@ -16,6 +17,7 @@ export default function AppRouter() {
 				{/* 2. 종목 상세 */}
 				<Route path="/stocks/:stockId" element={<StockDetail />} />
 				<Route path="/stocks/:stockId/:tradeType" element={<TradeAction />} />
+				<Route path="/stocks/:stockId/pending" element={<TradePendingList />} />
 
 				{/* 3. 거래내역 상세 */}
 				<Route path="/trades/:userId" element={<TradeDetail />} />

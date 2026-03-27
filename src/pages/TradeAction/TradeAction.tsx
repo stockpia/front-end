@@ -28,7 +28,7 @@ const TRADE_CONTENT: Record<
   sell: {
     title: "판매하기",
     description: "",
-    buttonLabel: "구매 예약하기",
+    buttonLabel: "판매 예약하기",
     buttonClassName:
       "bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:outline-emerald-600",
     badgeClassName: "bg-emerald-100 text-emerald-700",
@@ -367,6 +367,20 @@ export default function TradeAction() {
                 {holdingQuantity.toLocaleString("ko-KR")}주입니다.
               </p>
             )}
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                `/stocks/${stockId ?? ""}/pending?name=${encodeURIComponent(
+                  stockName ?? "",
+                )}`,
+              )
+            }
+            className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+          >
+            체결 대기 목록
+          </button>
 
           <button
             type="button"
