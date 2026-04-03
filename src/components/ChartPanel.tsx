@@ -28,6 +28,13 @@ const TYPE_OPTIONS = [
 
 export type ChartType = (typeof TYPE_OPTIONS)[number]["id"];
 
+const RANGE_OPTIONS_BY_TYPE: Record<ChartType, readonly (typeof RANGE_OPTIONS)[number][]> =
+	{
+		candlestick: RANGE_OPTIONS,
+		technical: RANGE_OPTIONS.filter((option) => option.id !== "1d"),
+		line: RANGE_OPTIONS,
+	};
+
 const CHART_TYPE_CONTENT: Record<
 	ChartType,
 	{
@@ -99,9 +106,25 @@ export default function ChartPanel({
 	watchlistDisabled = false,
 	footer,
 }: ChartPanelProps) {
+	const availableRangeOptions = useMemo(
+		() => RANGE_OPTIONS_BY_TYPE[type],
+		[type],
+	);
+
+	useEffect(() => {
+		if (availableRangeOptions.some((option) => option.id === range)) {
+			return;
+		}
+
+		onRangeChange(availableRangeOptions[0]?.id ?? "1m");
+	}, [availableRangeOptions, onRangeChange, range]);
+
 	const rangeLabel = useMemo(
-		() => RANGE_OPTIONS.find((option) => option.id === range)?.label ?? "",
-		[range],
+		() =>
+			availableRangeOptions.find((option) => option.id === range)?.label ??
+			availableRangeOptions[0]?.label ??
+			"",
+		[availableRangeOptions, range],
 	);
 	const chartTypeContent = CHART_TYPE_CONTENT[type];
 
@@ -146,7 +169,11 @@ export default function ChartPanel({
 				</div>
 				<div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
 					<TypeSelect value={type} onChange={onTypeChange} />
-					<RangeTabs value={range} onChange={onRangeChange} />
+					<RangeTabs
+						value={range}
+						onChange={onRangeChange}
+						options={availableRangeOptions}
+					/>
 				</div>
 				<ChartTypeGuide content={chartTypeContent} />
 			</header>
@@ -227,12 +254,13 @@ function ChartTypeGuide({ content }: ChartTypeGuideProps) {
 type RangeTabsProps = {
 	value: ChartRange;
 	onChange: (range: ChartRange) => void;
+	options: readonly (typeof RANGE_OPTIONS)[number][];
 };
 
-function RangeTabs({ value, onChange }: RangeTabsProps) {
+function RangeTabs({ value, onChange, options }: RangeTabsProps) {
 	return (
 		<div className="ml-auto flex items-center gap-1 rounded-full bg-white p-0.5">
-			{RANGE_OPTIONS.map((option) => {
+			{options.map((option) => {
 				const isActive = option.id === value;
 				return (
 					<button
@@ -421,6 +449,8 @@ function ChartRenderer({
 					layout={{
 						...(normalizedPlotly.layout ?? {}),
 						autosize: true,
+						hovermode: "x unified",
+						dragmode: false,
 						margin: {
 							...((normalizedPlotly.layout?.margin ?? {}) as Record<
 								string,
@@ -428,7 +458,11 @@ function ChartRenderer({
 							>),
 						},
 					}}
-					config={{ responsive: true, displayModeBar: false }}
+					config={{
+						responsive: true,
+						displayModeBar: false,
+						scrollZoom: false,
+					}}
 					useResizeHandler
 					style={{ width: "100%" }}
 				/>
