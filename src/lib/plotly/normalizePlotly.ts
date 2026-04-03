@@ -170,6 +170,7 @@ function normalizeCandlestickLayout(
   resolvedYKeys.forEach((key) => {
     nextLayout[key] = normalizeYAxis(
       nextLayout[key] as Record<string, unknown>,
+      { axisKey: key },
     );
   });
 
@@ -221,8 +222,14 @@ function normalizeXAxis(
 
   return {
     ...cleaned,
-    showticklabels: false,
+    showticklabels: true,
     ticks: "",
+    tickfont: {
+      size: 10,
+      color: "#94a3b8",
+    },
+    tickformat: "%-m월\n%Y",
+    automargin: true,
     rangebreaks: nextRangebreaks,
   };
 }
@@ -239,13 +246,23 @@ function mergeWeekendRangebreaks(rangebreaks: unknown[]) {
     : [...rangebreaks, { bounds: ["sat", "mon"] }];
 }
 
-function normalizeYAxis(axis?: Record<string, unknown>) {
+function normalizeYAxis(
+  axis?: Record<string, unknown>,
+  { axisKey = "yaxis" }: { axisKey?: string } = {},
+) {
   const { title: _, ...cleaned } = axis ?? {};
 
   return {
     ...cleaned,
-    showticklabels: false,
+    showticklabels: axisKey === "yaxis",
     ticks: "",
+    tickfont: {
+      size: 10,
+      color: "#94a3b8",
+    },
+    tickformat: ",.0f",
+    separatethousands: true,
+    automargin: true,
   };
 }
 
@@ -257,7 +274,11 @@ function buildYAxisTitleAnnotations(
   layout: Record<string, unknown>,
   yAxisKeys: string[],
 ) {
-  return yAxisKeys.map((axisKey) => {
+  return yAxisKeys.flatMap((axisKey) => {
+    if (axisKey !== "yaxis2") {
+      return [];
+    }
+
     const axis = (layout[axisKey] as Record<string, unknown> | undefined) ?? {};
     const domain = Array.isArray(axis.domain) ? axis.domain : [0, 1];
     const domainStart = typeof domain[0] === "number" ? domain[0] : 0;
@@ -274,7 +295,7 @@ function buildYAxisTitleAnnotations(
       yanchor: "middle",
       xshift: -14,
       textangle: 0,
-      text: axisKey === "yaxis2" ? "거래량" : "주가",
+      text: "거래량",
       showarrow: false,
       font: { size: 12, color: "#334155" },
     };
@@ -491,14 +512,45 @@ function convertToWeeklyVolume(
 // ─────────────────────────────────────────────
 
 function findRsiTrace(data: unknown[]) {
-  return data.find((trace) => {
-    if (!trace || typeof trace !== "object") return false;
-    const name =
-      typeof (trace as Record<string, unknown>).name === "string"
-        ? ((trace as Record<string, unknown>).name as string)
-        : "";
+  const traces = data.filter(
+    (trace): trace is Record<string, unknown> =>
+      Boolean(trace) && typeof trace === "object",
+  );
+
+  const namedRsiTrace = traces.find((trace) => {
+    const name = typeof trace.name === "string" ? trace.name : "";
     return /(^|\s)RSI(\s|$)/i.test(name);
-  }) as Record<string, unknown> | undefined;
+  });
+
+  if (namedRsiTrace) {
+    return namedRsiTrace;
+  }
+
+  const subplotRsiTrace = traces.find((trace) => {
+    const type = typeof trace.type === "string" ? trace.type : "";
+    const xaxis = typeof trace.xaxis === "string" ? trace.xaxis : "";
+    const yaxis = typeof trace.yaxis === "string" ? trace.yaxis : "";
+    const name = typeof trace.name === "string" ? trace.name.trim() : "";
+
+    return (
+      isLineTrace(type) &&
+      xaxis === "x2" &&
+      yaxis === "y2" &&
+      name.length === 0
+    );
+  });
+
+  if (subplotRsiTrace) {
+    return subplotRsiTrace;
+  }
+
+  return traces.find((trace) => {
+    const type = typeof trace.type === "string" ? trace.type : "";
+    const yaxis = typeof trace.yaxis === "string" ? trace.yaxis : "";
+    const name = typeof trace.name === "string" ? trace.name.trim() : "";
+
+    return isLineTrace(type) && yaxis === "y2" && name.length === 0;
+  });
 }
 
 function buildRsiGuideShapesFromTrace(rsiTrace: Record<string, unknown>) {
