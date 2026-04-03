@@ -301,7 +301,7 @@ export default function Stocks() {
 										`/stocks/${effectiveSelectedStock.ticker}/sell?name=${selectedNameParam}`,
 									)
 								}
-								className="rounded-[28px] border border-emerald-200 bg-emerald-50 px-5 py-5 text-center text-base font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100/80"
+								className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-5 text-center text-base font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100/80"
 							>
 								판매하기
 							</button>

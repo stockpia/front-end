@@ -9,6 +9,10 @@ type NormalizeOptions = {
   chartType?: StockChartType;
 };
 
+// ─────────────────────────────────────────────
+// 진입점
+// ─────────────────────────────────────────────
+
 export default function normalizePlotly(
   figure: PlotlyFigure,
   { chartType }: NormalizeOptions = {},
@@ -27,12 +31,40 @@ export default function normalizePlotly(
   }
 }
 
+// ─────────────────────────────────────────────
+// 차트 타입별 정규화
+// ─────────────────────────────────────────────
+
 function normalizeCandlestick(figure: PlotlyFigure): PlotlyFigure {
   return normalizeCandlestickLike(figure, { withExtremes: true });
 }
 
 function normalizeTechnical(figure: PlotlyFigure): PlotlyFigure {
-  return normalizeCandlestickLike(figure, { withExtremes: false });
+  const normalized = normalizeCandlestickLike(figure, { withExtremes: false });
+  const data = normalized.data ?? [];
+
+  // RSI trace를 한 번만 탐색
+  const rsiTrace = findRsiTrace(data);
+  if (!rsiTrace) {
+    return normalized;
+  }
+
+  const rsiShapes = buildRsiGuideShapesFromTrace(rsiTrace);
+  const rsiAnnotations = buildRsiGuideAnnotationsFromTrace(rsiTrace);
+
+  const layout = { ...(normalized.layout ?? {}) };
+  layout.shapes = mergeByMarker(
+    toArray(layout.shapes),
+    rsiShapes,
+    "__rsiGuide",
+  );
+  layout.annotations = mergeByMarker(
+    toArray(layout.annotations),
+    rsiAnnotations,
+    "__rsiGuide",
+  );
+
+  return { ...normalized, layout };
 }
 
 function normalizeVolume(figure: PlotlyFigure): PlotlyFigure {
@@ -40,11 +72,8 @@ function normalizeVolume(figure: PlotlyFigure): PlotlyFigure {
     return figure;
   }
 
-  // 거래량 데이터 찾기
   const volumeTrace = figure.data.find((trace) => {
-    if (!trace || typeof trace !== "object") {
-      return false;
-    }
+    if (!trace || typeof trace !== "object") return false;
     const typed = trace as Record<string, unknown>;
     return typed.type === "bar" || typed.name === "거래량";
   }) as Record<string, unknown> | undefined;
@@ -56,219 +85,179 @@ function normalizeVolume(figure: PlotlyFigure): PlotlyFigure {
   const xs = toArray(volumeTrace.x);
   const ys = toNumberArray(volumeTrace.y);
 
-  // 데이터 포인트가 200개 이상이면 주봉으로 변환
-  if (xs.length >= 80) {
-    const weeklyData = convertToWeeklyVolume(xs, ys, volumeTrace);
-    return {
-      ...figure,
-      data: figure.data.map((trace) => {
-        if (trace === volumeTrace) {
-          return weeklyData;
-        }
-        return trace;
-      }),
-    };
+  if (xs.length < 80) {
+    return figure;
   }
 
-  return figure;
-}
-
-function convertToWeeklyVolume(
-  dates: unknown[],
-  volumes: number[],
-  originalTrace: Record<string, unknown>,
-): Record<string, unknown> {
-  const weeklyMap = new Map<
-    string,
-    { volume: number; color: string; date: string }
-  >();
-
-  dates.forEach((date, index) => {
-    const dateStr = String(date);
-    const volume = volumes[index] || 0;
-
-    const d = new Date(dateStr);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(d.setDate(diff));
-    const weekKey = monday.toISOString().split("T")[0];
-
-    if (!weeklyMap.has(weekKey)) {
-      weeklyMap.set(weekKey, {
-        volume: 0,
-        color: "",
-        date: weekKey,
-      });
-    }
-
-    const weekData = weeklyMap.get(weekKey)!;
-    weekData.volume += volume;
-
-    const colors = Array.isArray(originalTrace.marker)
-      ? (originalTrace.marker as any).color
-      : (originalTrace.marker as Record<string, unknown>)?.color;
-
-    if (Array.isArray(colors) && colors[index]) {
-      weekData.color = colors[index];
-    }
-  });
-
-  const weeklyArray = Array.from(weeklyMap.values()).sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
-
+  const weeklyData = convertToWeeklyVolume(xs, ys, volumeTrace);
   return {
-    ...originalTrace,
-    x: weeklyArray.map((w) => w.date),
-    y: weeklyArray.map((w) => w.volume),
-    marker: {
-      ...(typeof originalTrace.marker === "object" ? originalTrace.marker : {}),
-      color: weeklyArray.map((w) => w.color || "#94a3b8"),
-    },
+    ...figure,
+    data: figure.data.map((trace) =>
+      trace === volumeTrace ? weeklyData : trace,
+    ),
   };
 }
 
 function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
-  const nextLayout = normalizeCandlestickLayout(figure.layout);
+  const nextLayout = normalizeCandlestickLayout(figure.layout, {
+    collapseWeekends: false,
+  });
   const nextData = normalizeLineData(figure.data ?? []);
   const extremeAnnotations = buildCandlestickExtremes(nextData);
+
   if (extremeAnnotations) {
-    const existing = Array.isArray(nextLayout.annotations)
-      ? nextLayout.annotations
-      : [];
-    nextLayout.annotations = [...existing, ...extremeAnnotations];
+    nextLayout.annotations = mergeByMarker(
+      toArray(nextLayout.annotations),
+      extremeAnnotations,
+      // extremes는 marker key 없이 단순 추가
+    );
   }
-  return {
-    ...figure,
-    data: nextData,
-    layout: nextLayout,
-  };
+
+  return { ...figure, data: nextData, layout: nextLayout };
 }
+
+// ─────────────────────────────────────────────
+// candlestick / technical 공통 처리
+// ─────────────────────────────────────────────
 
 function normalizeCandlestickLike(
   figure: PlotlyFigure,
   { withExtremes }: { withExtremes: boolean },
 ): PlotlyFigure {
-  const nextLayout = normalizeCandlestickLayout(figure.layout);
+  const nextLayout = normalizeCandlestickLayout(figure.layout, {
+    collapseWeekends: true,
+  });
   const nextData = normalizeCandlestickData(figure.data ?? []);
 
   if (withExtremes) {
     const extremeAnnotations = buildCandlestickExtremes(nextData);
     if (extremeAnnotations) {
-      const existing = Array.isArray(nextLayout.annotations)
-        ? nextLayout.annotations
-        : [];
-      nextLayout.annotations = [...existing, ...extremeAnnotations];
+      nextLayout.annotations = [
+        ...toArray(nextLayout.annotations),
+        ...extremeAnnotations,
+      ];
     }
   }
 
-  return {
-    ...figure,
-    data: nextData,
-    layout: nextLayout,
-  };
+  return { ...figure, data: nextData, layout: nextLayout };
 }
+
+// ─────────────────────────────────────────────
+// 레이아웃 정규화
+// ─────────────────────────────────────────────
 
 function normalizeCandlestickLayout(
   layout: PlotlyFigure["layout"],
+  { collapseWeekends = false }: { collapseWeekends?: boolean } = {},
 ): Record<string, unknown> {
-  if (!layout) {
-    layout = {};
-  }
-
-  const nextLayout: Record<string, unknown> = { ...layout };
+  const nextLayout: Record<string, unknown> = { ...(layout ?? {}) };
   nextLayout.showlegend = false;
-  const axisKeys = Object.keys(nextLayout).filter((key) =>
-    /^xaxis\d*$/.test(key),
-  );
-  const yAxisKeys = Object.keys(nextLayout).filter((key) =>
-    /^yaxis\d*$/.test(key),
-  );
 
-  if (axisKeys.length === 0) {
-    nextLayout.xaxis = normalizeXAxis(
-      nextLayout.xaxis as Record<string, unknown>,
+  const xAxisKeys = Object.keys(nextLayout).filter((k) => /^xaxis\d*$/.test(k));
+  const yAxisKeys = Object.keys(nextLayout).filter((k) => /^yaxis\d*$/.test(k));
+
+  // 축 키가 없으면 기본 키 사용
+  const resolvedXKeys = xAxisKeys.length ? xAxisKeys : ["xaxis"];
+  const resolvedYKeys = yAxisKeys.length ? yAxisKeys : ["yaxis"];
+
+  resolvedXKeys.forEach((key) => {
+    nextLayout[key] = normalizeXAxis(
+      nextLayout[key] as Record<string, unknown>,
+      { collapseWeekends },
     );
-  } else {
-    axisKeys.forEach((key) => {
-      nextLayout[key] = normalizeXAxis(
-        nextLayout[key] as Record<string, unknown>,
-      );
-    });
-  }
+  });
 
-  if (yAxisKeys.length === 0) {
-    nextLayout.yaxis = normalizeYAxis(nextLayout.yaxis as Record<string, unknown>);
-  } else {
-    yAxisKeys.forEach((key) => {
-      nextLayout[key] = normalizeYAxis(
-        nextLayout[key] as Record<string, unknown>,
-      );
-    });
-  }
+  resolvedYKeys.forEach((key) => {
+    nextLayout[key] = normalizeYAxis(
+      nextLayout[key] as Record<string, unknown>,
+    );
+  });
 
-  const axisTitleAnnotations = buildYAxisTitleAnnotations(nextLayout, yAxisKeys);
+  const axisTitleAnnotations = buildYAxisTitleAnnotations(
+    nextLayout,
+    resolvedYKeys,
+  );
   if (axisTitleAnnotations.length) {
-    const existing = Array.isArray(nextLayout.annotations)
-      ? nextLayout.annotations
-      : [];
-    const withoutAxisTitleAnnotations = existing.filter((annotation) => {
-      if (!annotation || typeof annotation !== "object") {
-        return true;
-      }
-      return (annotation as Record<string, unknown>).__axisTitle !== true;
-    });
-    nextLayout.annotations = [
-      ...withoutAxisTitleAnnotations,
-      ...axisTitleAnnotations,
-    ];
+    nextLayout.annotations = mergeByMarker(
+      toArray(nextLayout.annotations),
+      axisTitleAnnotations,
+      "__axisTitle",
+    );
   }
 
   const margin = (nextLayout.margin as Record<string, unknown>) ?? {};
-  const left = typeof margin.l === "number" ? margin.l : 0;
-  const right = typeof margin.r === "number" ? margin.r : 0;
   nextLayout.margin = {
     ...margin,
-    l: Math.max(left, 56),
-    r: Math.max(right, 56),
+    l: Math.max(typeof margin.l === "number" ? margin.l : 0, 56),
+    r: Math.max(typeof margin.r === "number" ? margin.r : 0, 56),
+  };
+
+  nextLayout.hoverlabel = {
+    bgcolor: "rgba(255,255,255,0.98)",
+    bordercolor: "#cbd5e1",
+    font: {
+      family:
+        "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      size: 13,
+      color: "#0f172a",
+    },
+    align: "left",
+    namelength: -1,
   };
 
   return nextLayout;
 }
 
-function normalizeXAxis(axis?: Record<string, unknown>) {
-  const cleaned = { ...(axis ?? {}) };
-  delete cleaned.title;
+function normalizeXAxis(
+  axis?: Record<string, unknown>,
+  { collapseWeekends = false }: { collapseWeekends?: boolean } = {},
+) {
+  const { title: _, ...cleaned } = axis ?? {};
+
+  const existingRangebreaks = toArray(cleaned.rangebreaks);
+  const nextRangebreaks = collapseWeekends
+    ? mergeWeekendRangebreaks(existingRangebreaks)
+    : existingRangebreaks;
 
   return {
     ...cleaned,
     showticklabels: false,
     ticks: "",
-    ticktext: [],
-    tickvals: [],
+    rangebreaks: nextRangebreaks,
   };
+}
+
+function mergeWeekendRangebreaks(rangebreaks: unknown[]) {
+  const hasWeekendBreak = rangebreaks.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    const bounds = (item as Record<string, unknown>).bounds;
+    return Array.isArray(bounds) && bounds[0] === "sat" && bounds[1] === "mon";
+  });
+
+  return hasWeekendBreak
+    ? rangebreaks
+    : [...rangebreaks, { bounds: ["sat", "mon"] }];
 }
 
 function normalizeYAxis(axis?: Record<string, unknown>) {
-  const cleaned = { ...(axis ?? {}) };
-  delete cleaned.title;
+  const { title: _, ...cleaned } = axis ?? {};
 
   return {
     ...cleaned,
     showticklabels: false,
     ticks: "",
-    ticktext: [],
-    tickvals: [],
   };
 }
+
+// ─────────────────────────────────────────────
+// y축 타이틀 annotation
+// ─────────────────────────────────────────────
 
 function buildYAxisTitleAnnotations(
   layout: Record<string, unknown>,
   yAxisKeys: string[],
 ) {
-  const keys = yAxisKeys.length > 0 ? yAxisKeys : ["yaxis"];
-
-  return keys.map((axisKey) => {
+  return yAxisKeys.map((axisKey) => {
     const axis = (layout[axisKey] as Record<string, unknown> | undefined) ?? {};
     const domain = Array.isArray(axis.domain) ? axis.domain : [0, 1];
     const domainStart = typeof domain[0] === "number" ? domain[0] : 0;
@@ -292,16 +281,23 @@ function buildYAxisTitleAnnotations(
   });
 }
 
+// ─────────────────────────────────────────────
+// 데이터 정규화
+// ─────────────────────────────────────────────
+
 function normalizeCandlestickData(data: unknown[]): unknown[] {
   return data.map((trace) => {
-    if (!trace || typeof trace !== "object") {
-      return trace;
-    }
+    if (!trace || typeof trace !== "object") return trace;
+
     const typedTrace = trace as Record<string, unknown>;
     const type = typeof typedTrace.type === "string" ? typedTrace.type : "";
     const name = typeof typedTrace.name === "string" ? typedTrace.name : "";
     const yaxis = typeof typedTrace.yaxis === "string" ? typedTrace.yaxis : "";
     const isVolumeTrace = type === "bar" || name === "거래량" || yaxis === "y2";
+
+    if (type === "candlestick") {
+      return normalizeCandlestickTrace(typedTrace);
+    }
 
     if (isVolumeTrace) {
       const marker = (typedTrace.marker as Record<string, unknown>) ?? {};
@@ -316,48 +312,261 @@ function normalizeCandlestickData(data: unknown[]): unknown[] {
       };
     }
 
+    if (isLineTrace(type)) {
+      return normalizeIndicatorTrace(typedTrace);
+    }
+
     return trace;
   });
 }
 
+function normalizeCandlestickTrace(
+  trace: Record<string, unknown>,
+): Record<string, unknown> {
+  const increasing = (trace.increasing as Record<string, unknown>) ?? {};
+  const decreasing = (trace.decreasing as Record<string, unknown>) ?? {};
+  const increasingLine =
+    (increasing.line as Record<string, unknown> | undefined) ?? {};
+  const decreasingLine =
+    (decreasing.line as Record<string, unknown> | undefined) ?? {};
+
+  return {
+    ...trace,
+    name: "주가",
+    hoverlabel: {
+      bgcolor: "rgba(255,255,255,0.98)",
+      bordercolor: "#cbd5e1",
+    },
+    hovertemplate:
+      "<b>주가</b><br>" +
+      "시가 <b>%{open:,.0f}</b>원<br>" +
+      "고가 <b>%{high:,.0f}</b>원<br>" +
+      "저가 <b>%{low:,.0f}</b>원<br>" +
+      "종가 <b>%{close:,.0f}</b>원" +
+      "<extra></extra>",
+    increasing: { ...increasing, line: { ...increasingLine, width: 1 } },
+    decreasing: { ...decreasing, line: { ...decreasingLine, width: 1 } },
+  };
+}
+
 function resolveVolumeMarkerColor(marker: Record<string, unknown>) {
-  const markerColor = marker.color;
-
-  if (Array.isArray(markerColor) && markerColor.length > 0) {
-    return markerColor;
-  }
-
-  if (typeof markerColor === "string" && markerColor.trim().length > 0) {
-    return markerColor;
-  }
-
+  const color = marker.color;
+  if (Array.isArray(color) && color.length > 0) return color;
+  if (typeof color === "string" && color.trim().length > 0) return color;
   return "#94a3b8";
 }
 
 function normalizeLineData(data: unknown[]): unknown[] {
   return data.map((trace) => {
-    if (!trace || typeof trace !== "object") {
-      return trace;
-    }
+    if (!trace || typeof trace !== "object") return trace;
+
     const typedTrace = trace as Record<string, unknown>;
     const type = typeof typedTrace.type === "string" ? typedTrace.type : "";
-    if (type && type !== "scatter" && type !== "line" && type !== "scattergl") {
-      return trace;
-    }
+    if (type && !isLineTrace(type)) return trace;
 
+    // fillcolor 키 자체를 제거해야 Plotly가 fill을 무시함
+    const { fillcolor: _, ...rest } = typedTrace;
     return {
-      ...typedTrace,
+      ...rest,
       fill: "none",
-      fillcolor: undefined,
+      ...buildIndicatorHoverProps(typedTrace),
     };
   });
 }
 
+function normalizeIndicatorTrace(
+  trace: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...trace,
+    ...buildIndicatorHoverProps(trace),
+  };
+}
+
+function buildIndicatorHoverProps(trace: Record<string, unknown>) {
+  const rawName = typeof trace.name === "string" ? trace.name : "";
+  const displayName = normalizeIndicatorName(rawName);
+  const line = (trace.line as Record<string, unknown> | undefined) ?? {};
+  const lineColor =
+    typeof line.color === "string" && line.color.trim().length > 0
+      ? line.color
+      : "#475569";
+
+  return {
+    name: displayName,
+    line: {
+      ...line,
+      shape: isMovingAverageIndicator(displayName) ? "spline" : line.shape,
+      smoothing: isMovingAverageIndicator(displayName) ? 0.7 : line.smoothing,
+    },
+    hoverlabel: {
+      bgcolor: "rgba(255,255,255,0.98)",
+      bordercolor: lineColor,
+    },
+    hovertemplate:
+      `<span style="color:${lineColor};">●</span> <b>${displayName}</b> ` +
+      `<b>%{y:,.0f}</b>원<extra></extra>`,
+  };
+}
+
+function normalizeIndicatorName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "지표";
+
+  const compact = trimmed.replace(/\s+/g, "").toUpperCase();
+
+  const maMatch = compact.match(/MA(\d+)/);
+  if (maMatch) return `MA${maMatch[1]}`;
+
+  const numberMatch = compact.match(/(\d+)/);
+  if (compact.includes("이동평균") && numberMatch) return `MA${numberMatch[1]}`;
+
+  return trimmed;
+}
+
+function isLineTrace(type: string) {
+  return type === "scatter" || type === "line" || type === "scattergl";
+}
+
+function isMovingAverageIndicator(name: string) {
+  return /^MA\d+$/i.test(name.trim());
+}
+
+// ─────────────────────────────────────────────
+// 주봉 거래량 변환
+// ─────────────────────────────────────────────
+
+function convertToWeeklyVolume(
+  dates: unknown[],
+  volumes: number[],
+  originalTrace: Record<string, unknown>,
+): Record<string, unknown> {
+  const marker = originalTrace.marker as Record<string, unknown> | undefined;
+  const colors = Array.isArray(
+    (marker as Record<string, unknown> | undefined)?.color,
+  )
+    ? ((marker as Record<string, unknown>).color as unknown[])
+    : [];
+
+  const weeklyMap = new Map<
+    string,
+    { volume: number; color: string; date: string }
+  >();
+
+  dates.forEach((date, index) => {
+    const d = new Date(String(date));
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    const weekKey = monday.toISOString().split("T")[0];
+
+    if (!weeklyMap.has(weekKey)) {
+      weeklyMap.set(weekKey, { volume: 0, color: "", date: weekKey });
+    }
+
+    const weekData = weeklyMap.get(weekKey)!;
+    weekData.volume += volumes[index] || 0;
+    if (colors[index]) {
+      weekData.color = colors[index] as string;
+    }
+  });
+
+  const weeklyArray = Array.from(weeklyMap.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+
+  return {
+    ...originalTrace,
+    x: weeklyArray.map((w) => w.date),
+    y: weeklyArray.map((w) => w.volume),
+    marker: {
+      ...(typeof marker === "object" ? marker : {}),
+      color: weeklyArray.map((w) => w.color || "#94a3b8"),
+    },
+  };
+}
+
+// ─────────────────────────────────────────────
+// RSI 가이드라인
+// ─────────────────────────────────────────────
+
+function findRsiTrace(data: unknown[]) {
+  return data.find((trace) => {
+    if (!trace || typeof trace !== "object") return false;
+    const name =
+      typeof (trace as Record<string, unknown>).name === "string"
+        ? ((trace as Record<string, unknown>).name as string)
+        : "";
+    return /(^|\s)RSI(\s|$)/i.test(name);
+  }) as Record<string, unknown> | undefined;
+}
+
+function buildRsiGuideShapesFromTrace(rsiTrace: Record<string, unknown>) {
+  const yaxis = typeof rsiTrace.yaxis === "string" ? rsiTrace.yaxis : "y";
+  const yref = yaxis === "y" ? "y" : yaxis.replace("axis", "");
+
+  return [
+    buildRsiGuideShape(yref, 70, "#ef4444"),
+    buildRsiGuideShape(yref, 30, "#22c55e"),
+  ];
+}
+
+function buildRsiGuideShape(yref: string, y: number, color: string) {
+  return {
+    __rsiGuide: true,
+    type: "line",
+    xref: "paper",
+    x0: 0,
+    x1: 1,
+    yref,
+    y0: y,
+    y1: y,
+    line: { color, width: 1, dash: "dot" },
+  };
+}
+
+function buildRsiGuideAnnotationsFromTrace(rsiTrace: Record<string, unknown>) {
+  const yaxis = typeof rsiTrace.yaxis === "string" ? rsiTrace.yaxis : "y";
+  const yref = yaxis === "y" ? "y" : yaxis.replace("axis", "");
+
+  return [
+    buildRsiGuideAnnotation(yref, 70, "70", "#ef4444"),
+    buildRsiGuideAnnotation(yref, 30, "30", "#22c55e"),
+  ];
+}
+
+function buildRsiGuideAnnotation(
+  yref: string,
+  y: number,
+  text: string,
+  color: string,
+) {
+  return {
+    __rsiGuide: true,
+    xref: "paper",
+    x: 1,
+    xanchor: "left",
+    xshift: 6,
+    yref,
+    y,
+    yanchor: "middle",
+    text,
+    showarrow: false,
+    font: { size: 11, color },
+    bgcolor: "rgba(255,255,255,0.92)",
+    bordercolor: color,
+    borderwidth: 1,
+    borderpad: 3,
+  };
+}
+
+// ─────────────────────────────────────────────
+// 최고/최저 annotation
+// ─────────────────────────────────────────────
+
 function buildCandlestickExtremes(data: unknown[]) {
   const candle = data.find((trace) => {
-    if (!trace || typeof trace !== "object") {
-      return false;
-    }
+    if (!trace || typeof trace !== "object") return false;
     return (trace as Record<string, unknown>).type === "candlestick";
   }) as Record<string, unknown> | undefined;
 
@@ -365,70 +574,46 @@ function buildCandlestickExtremes(data: unknown[]) {
     const lows = toNumberArray(candle.low);
     const highs = toNumberArray(candle.high);
     const xs = toArray(candle.x);
-
-    if (!lows.length || !highs.length) {
-      return null;
-    }
-
-    const minValue = Math.min(...lows);
-    const maxValue = Math.max(...highs);
-    const minIndex = lows.indexOf(minValue);
-    const maxIndex = highs.indexOf(maxValue);
-
-    const minX = xs[minIndex] ?? minIndex;
-    const maxX = xs[maxIndex] ?? maxIndex;
+    if (!lows.length || !highs.length) return null;
 
     return buildExtremesAnnotations({
-      minValue,
-      maxValue,
-      minIndex,
-      maxIndex,
-      minX,
-      maxX,
+      ...extractMinMax(lows, xs, "min"),
+      ...extractMinMax(highs, xs, "max"),
       totalPoints: xs.length || highs.length,
     });
   }
 
   const line = data.find((trace) => {
-    if (!trace || typeof trace !== "object") {
-      return false;
-    }
+    if (!trace || typeof trace !== "object") return false;
     const typed = trace as Record<string, unknown>;
     const type = typeof typed.type === "string" ? typed.type : "";
-    if (type && type !== "scatter" && type !== "line" && type !== "scattergl") {
-      return false;
-    }
+    if (type && !isLineTrace(type)) return false;
     return Array.isArray(typed.y);
   }) as Record<string, unknown> | undefined;
 
-  if (!line) {
-    return null;
-  }
+  if (!line) return null;
 
   const ys = toNumberArray(line.y);
   const xs = toArray(line.x);
-
-  if (!ys.length) {
-    return null;
-  }
-
-  const minValue = Math.min(...ys);
-  const maxValue = Math.max(...ys);
-  const minIndex = ys.indexOf(minValue);
-  const maxIndex = ys.indexOf(maxValue);
-
-  const minX = xs[minIndex] ?? minIndex;
-  const maxX = xs[maxIndex] ?? maxIndex;
+  if (!ys.length) return null;
 
   return buildExtremesAnnotations({
-    minValue,
-    maxValue,
-    minIndex,
-    maxIndex,
-    minX,
-    maxX,
+    ...extractMinMax(ys, xs, "min"),
+    ...extractMinMax(ys, xs, "max"),
     totalPoints: xs.length || ys.length,
   });
+}
+
+function extractMinMax(values: number[], xs: unknown[], kind: "min" | "max") {
+  if (kind === "min") {
+    const minValue = Math.min(...values);
+    const minIndex = values.indexOf(minValue);
+    return { minValue, minIndex, minX: xs[minIndex] ?? minIndex };
+  } else {
+    const maxValue = Math.max(...values);
+    const maxIndex = values.indexOf(maxValue);
+    return { maxValue, maxIndex, maxX: xs[maxIndex] ?? maxIndex };
+  }
 }
 
 function buildExtremesAnnotations({
@@ -452,47 +637,68 @@ function buildExtremesAnnotations({
   const isMinNearRight = minIndex > totalPoints * (1 - threshold);
   const isMaxNearRight = maxIndex > totalPoints * (1 - threshold);
 
+  const baseStyle = {
+    showarrow: true,
+    arrowhead: 2,
+    ax: 0,
+    font: { size: 11, color: "#64748b" },
+    bgcolor: "rgba(255,255,255,0.9)",
+    bordercolor: "rgba(148,163,184,0.6)",
+    borderwidth: 1,
+  };
+
   return [
     {
+      ...baseStyle,
       x: minX,
       y: minValue,
       xanchor: isMinNearRight ? "right" : "left",
       yanchor: "bottom",
       text: `최저 ${formatWon(minValue)}`,
-      showarrow: true,
-      arrowhead: 2,
-      ax: 0,
       ay: 24,
-      font: { size: 11, color: "#64748b" },
-      bgcolor: "rgba(255,255,255,0.9)",
-      bordercolor: "rgba(148,163,184,0.6)",
-      borderwidth: 1,
     },
     {
+      ...baseStyle,
       x: maxX,
       y: maxValue,
       xanchor: isMaxNearRight ? "right" : "left",
       yanchor: "top",
       text: `최고 ${formatWon(maxValue)}`,
-      showarrow: true,
-      arrowhead: 2,
-      ax: 0,
       ay: -24,
-      font: { size: 11, color: "#64748b" },
-      bgcolor: "rgba(255,255,255,0.9)",
-      bordercolor: "rgba(148,163,184,0.6)",
-      borderwidth: 1,
     },
   ];
 }
 
+// ─────────────────────────────────────────────
+// 공통 유틸
+// ─────────────────────────────────────────────
+
+/**
+ * 기존 배열에서 markerKey가 true인 항목을 제거하고 additions를 뒤에 붙임.
+ * markerKey를 생략하면 필터 없이 단순 concat.
+ */
+function mergeByMarker<T extends Record<string, unknown>>(
+  existing: unknown[],
+  additions: T[],
+  markerKey?: string,
+): T[] {
+  const filtered = markerKey
+    ? existing.filter(
+        (item) =>
+          !item ||
+          typeof item !== "object" ||
+          (item as Record<string, unknown>)[markerKey] !== true,
+      )
+    : existing;
+
+  return [...filtered, ...additions] as T[];
+}
+
 function toNumberArray(value: unknown): number[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
   return value
     .map((item) => (typeof item === "number" ? item : Number(item)))
-    .filter((item) => Number.isFinite(item)) as number[];
+    .filter((item) => Number.isFinite(item));
 }
 
 function toArray(value: unknown): unknown[] {
