@@ -5,6 +5,13 @@ import { useHoldingsQuery } from "@/hooks/queries/useStocksListQueries";
 
 type TradeType = "buy" | "sell";
 type OrderMode = "market" | "current" | "limit";
+type OrderBookLevel = {
+  price: number;
+  side: "sell" | "buy";
+  quantity: number;
+  total: number;
+};
+
 const QUANTITY_RATIO_OPTIONS = [10, 25, 50] as const;
 
 const TRADE_CONTENT: Record<
@@ -42,6 +49,10 @@ function formatCurrency(value: number) {
 function formatPercent(value: number) {
   const prefix = value > 0 ? "+" : "";
   return `${prefix}${value.toFixed(2)}%`;
+}
+
+function formatCompactNumber(value: number) {
+  return value.toLocaleString("ko-KR");
 }
 
 export default function TradeAction() {
@@ -89,6 +100,39 @@ export default function TradeAction() {
     effectivePrice > 0
       ? ((currentPrice - effectivePrice) / effectivePrice) * 100
       : 0;
+  const orderBookLevels = useMemo<OrderBookLevel[]>(() => {
+    if (currentPrice <= 0) {
+      return [];
+    }
+
+    const tickSize =
+      currentPrice >= 100000 ? 500 : currentPrice >= 10000 ? 100 : 10;
+    const baseLevels = Array.from({ length: 6 }, (_, index) => {
+      const offset = 6 - index;
+      const sellPrice = currentPrice + tickSize * offset;
+      const buyPrice = Math.max(
+        currentPrice - tickSize * (index + 1),
+        tickSize,
+      );
+
+      return [
+        {
+          price: sellPrice,
+          side: "sell" as const,
+          quantity: 120 + offset * 35,
+          total: sellPrice * (120 + offset * 35),
+        },
+        {
+          price: buyPrice,
+          side: "buy" as const,
+          quantity: 140 + (index + 1) * 28,
+          total: buyPrice * (140 + (index + 1) * 28),
+        },
+      ];
+    }).flat();
+
+    return baseLevels.sort((a, b) => b.price - a.price);
+  }, [currentPrice]);
   const canProceed =
     Boolean(stockId) &&
     effectiveQuantity > 0 &&
@@ -171,132 +215,199 @@ export default function TradeAction() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+      <section className="space-y-6">
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">주문 설정</h2>
-            <div className="flex items-center rounded-full bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setOrderMode("limit")}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  orderMode === "limit"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}>
-                지정가
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderMode("current")}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  orderMode === "current"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}>
-                현재가
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderMode("market")}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  orderMode === "market"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}>
-                시장가
-              </button>
+          <div className="grid gap-4 grid-cols-[minmax(90px,0.24fr)_minmax(0,1.76fr)]">
+            <div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-1 text-[9px] font-semibold">
+                  <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-blue-700">
+                    매도
+                  </span>
+                  <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-rose-700">
+                    매수
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 w-fit overflow-hidden rounded-lg border border-slate-200">
+                <div className="grid grid-cols-[60px_16px] border-b border-slate-200 bg-slate-50 px-1.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  <span>가격</span>
+                  <span className="text-right">수량</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {orderBookLevels.length > 0 ? (
+                    orderBookLevels.map((level) => {
+                      const isSell = level.side === "sell";
+
+                      return (
+                        <button
+                          key={`${level.side}-${level.price}`}
+                          type="button"
+                          onClick={() =>
+                            setLimitPriceInput(String(level.price))
+                          }
+                          className={`grid w-full grid-cols-[60px_16px] items-center px-1.5 py-1.5 text-left transition ${
+                            isSell
+                              ? "bg-blue-50/70 hover:bg-blue-100/80"
+                              : "bg-rose-50/70 hover:bg-rose-100/80"
+                          }`}>
+                          <div>
+                            <div
+                              className={`text-[10px] font-semibold leading-4 ${
+                                isSell ? "text-blue-900" : "text-rose-900"
+                              }`}>
+                              {formatCompactNumber(level.price)}
+                            </div>
+                          </div>
+                          <span className="text-right text-[9px] font-semibold text-slate-700">
+                            {formatCompactNumber(level.quantity)}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-8 text-center text-sm text-slate-400">
+                      표시할 호가 데이터가 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">
-                {orderMode === "limit"
-                  ? "주문 단가"
-                  : orderMode === "current"
-                    ? "현재가"
-                    : "시장가 기준 가격"}
-              </span>
-              <div className="mt-2 flex items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={
-                    orderMode === "limit" ? limitPriceInput : currentPrice || ""
-                  }
-                  onChange={(event) => setLimitPriceInput(event.target.value)}
-                  disabled={orderMode !== "limit"}
-                  className="min-w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400"
-                  placeholder="가격 입력"
-                />
-                <div className="flex items-center gap-1">
+            <div>
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  주문 설정
+                </h2>
+                <div className="inline-flex max-w-full items-center rounded-full bg-slate-100 p-1">
                   <button
                     type="button"
-                    onClick={() => adjustLimitPrice(-100)}
-                    disabled={orderMode !== "limit"}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300">
-                    -
+                    onClick={() => setOrderMode("limit")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      orderMode === "limit"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}>
+                    지정가
                   </button>
                   <button
                     type="button"
-                    onClick={() => adjustLimitPrice(100)}
-                    disabled={orderMode !== "limit"}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300">
-                    +
+                    onClick={() => setOrderMode("current")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      orderMode === "current"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}>
+                    현재가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderMode("market")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      orderMode === "market"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}>
+                    시장가
                   </button>
                 </div>
               </div>
-            </label>
 
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">
-                주문 수량
-              </span>
-              <div className="mt-2 flex items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={quantity}
-                  onChange={(event) => setQuantity(event.target.value)}
-                  className="min-w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none"
-                  placeholder="수량 입력"
-                />
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => adjustQuantity(-1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                    -
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => adjustQuantity(1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                    +
-                  </button>
-                </div>
+              <div className="mt-6 grid gap-5">
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {orderMode === "limit"
+                      ? "주문 단가"
+                      : orderMode === "current"
+                        ? "현재가"
+                        : "시장가 기준 가격"}
+                  </span>
+                  <div className="mt-2 flex w-full items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={
+                        orderMode === "limit"
+                          ? limitPriceInput
+                          : currentPrice || ""
+                      }
+                      onChange={(event) =>
+                        setLimitPriceInput(event.target.value)
+                      }
+                      disabled={orderMode !== "limit"}
+                      className="min-w-0 w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400"
+                      placeholder="가격 입력"
+                    />
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => adjustLimitPrice(-100)}
+                        disabled={orderMode !== "limit"}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300">
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustLimitPrice(100)}
+                        disabled={orderMode !== "limit"}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    주문 수량
+                  </span>
+                  <div className="mt-2 flex w-full items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={quantity}
+                      onChange={(event) => setQuantity(event.target.value)}
+                      className="min-w-0 w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none"
+                      placeholder="수량 입력"
+                    />
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => adjustQuantity(-1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustQuantity(1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {QUANTITY_RATIO_OPTIONS.map((ratio) => (
+                      <button
+                        key={ratio}
+                        type="button"
+                        onClick={() => applyQuantityRatio(ratio)}
+                        className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
+                        {ratio}%
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={applyMaxQuantity}
+                      className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
+                      최대
+                    </button>
+                  </div>
+                </label>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {QUANTITY_RATIO_OPTIONS.map((ratio) => (
-                  <button
-                    key={ratio}
-                    type="button"
-                    onClick={() => applyQuantityRatio(ratio)}
-                    className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                    {ratio}%
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={applyMaxQuantity}
-                  className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                  최대
-                </button>
-              </div>
-            </label>
+            </div>
           </div>
         </article>
 
@@ -377,8 +488,7 @@ export default function TradeAction() {
                 )}`,
               )
             }
-            className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-          >
+            className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900">
             체결 대기 목록
           </button>
 

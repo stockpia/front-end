@@ -627,10 +627,16 @@ function buildCandlestickExtremes(data: unknown[]) {
     const highs = toNumberArray(candle.high);
     const xs = toArray(candle.x);
     if (!lows.length || !highs.length) return null;
+    const { minValue, minIndex, minX } = extractMinPoint(lows, xs);
+    const { maxValue, maxIndex, maxX } = extractMaxPoint(highs, xs);
 
     return buildExtremesAnnotations({
-      ...extractMinMax(lows, xs, "min"),
-      ...extractMinMax(highs, xs, "max"),
+      minValue,
+      minIndex,
+      minX,
+      maxValue,
+      maxIndex,
+      maxX,
       totalPoints: xs.length || highs.length,
     });
   }
@@ -648,24 +654,30 @@ function buildCandlestickExtremes(data: unknown[]) {
   const ys = toNumberArray(line.y);
   const xs = toArray(line.x);
   if (!ys.length) return null;
+  const { minValue, minIndex, minX } = extractMinPoint(ys, xs);
+  const { maxValue, maxIndex, maxX } = extractMaxPoint(ys, xs);
 
   return buildExtremesAnnotations({
-    ...extractMinMax(ys, xs, "min"),
-    ...extractMinMax(ys, xs, "max"),
+    minValue,
+    minIndex,
+    minX,
+    maxValue,
+    maxIndex,
+    maxX,
     totalPoints: xs.length || ys.length,
   });
 }
 
-function extractMinMax(values: number[], xs: unknown[], kind: "min" | "max") {
-  if (kind === "min") {
-    const minValue = Math.min(...values);
-    const minIndex = values.indexOf(minValue);
-    return { minValue, minIndex, minX: xs[minIndex] ?? minIndex };
-  } else {
-    const maxValue = Math.max(...values);
-    const maxIndex = values.indexOf(maxValue);
-    return { maxValue, maxIndex, maxX: xs[maxIndex] ?? maxIndex };
-  }
+function extractMinPoint(values: number[], xs: unknown[]) {
+  const minValue = Math.min(...values);
+  const minIndex = values.indexOf(minValue);
+  return { minValue, minIndex, minX: xs[minIndex] ?? minIndex };
+}
+
+function extractMaxPoint(values: number[], xs: unknown[]) {
+  const maxValue = Math.max(...values);
+  const maxIndex = values.indexOf(maxValue);
+  return { maxValue, maxIndex, maxX: xs[maxIndex] ?? maxIndex };
 }
 
 function buildExtremesAnnotations({
