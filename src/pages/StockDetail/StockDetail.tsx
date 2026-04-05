@@ -126,6 +126,12 @@ export default function StockDetail() {
 				isWatchlisted={Boolean(stockId && watchlistItemsByTicker[stockId])}
 				onToggleWatchlist={stockId ? handleToggleWatchlist : undefined}
 				watchlistAriaLabel={`${symbolLabel} 관심 종목 추가`}
+				tradeTicker={stockId}
+				tradeName={
+					searchParams.get("name")
+						? decodeURIComponent(searchParams.get("name") as string)
+						: stockId
+				}
 			/>
 
 			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
