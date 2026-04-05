@@ -224,9 +224,6 @@ export default function Stocks() {
 		range,
 		type: chartType,
 	});
-	const selectedNameParam = effectiveSelectedStock
-		? encodeURIComponent(effectiveSelectedStock.name)
-		: "";
 
 	return (
 		<div className="space-y-8 py-8">
@@ -292,33 +289,8 @@ export default function Stocks() {
 					}
 					watchlistAriaLabel={`${effectiveSelectedStock.name} 관심 종목 추가`}
 					showWatchlistButton
-					footer={
-						<section className="grid grid-cols-2 gap-4">
-							<button
-								type="button"
-								onClick={() =>
-									navigate(
-										`/stocks/${effectiveSelectedStock.ticker}/sell?name=${selectedNameParam}`,
-									)
-								}
-								className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-5 text-center text-base font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100/80"
-							>
-								판매하기
-							</button>
-
-							<button
-								type="button"
-								onClick={() =>
-									navigate(
-										`/stocks/${effectiveSelectedStock.ticker}/buy?name=${selectedNameParam}`,
-									)
-								}
-								className="rounded-[28px] border border-blue-200 bg-blue-50 px-5 py-5 text-center text-base font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100/80"
-							>
-								구매하기
-							</button>
-						</section>
-					}
+					tradeTicker={effectiveSelectedStock.ticker}
+					tradeName={effectiveSelectedStock.name}
 				/>
 			) : (
 				<ChartPanel
@@ -333,25 +305,6 @@ export default function Stocks() {
 					showWatchlistButton
 					watchlistDisabled
 					watchlistAriaLabel="종목 선택 후 관심 종목 추가"
-					footer={
-						<section className="grid grid-cols-2 gap-4">
-							<button
-								type="button"
-								disabled
-								className="rounded-[28px] border border-slate-200 bg-slate-100 px-5 py-5 text-center text-base font-semibold text-slate-400"
-							>
-								판매하기
-							</button>
-
-							<button
-								type="button"
-								disabled
-								className="rounded-[28px] border border-slate-200 bg-slate-100 px-5 py-5 text-center text-base font-semibold text-slate-400"
-							>
-								구매하기
-							</button>
-						</section>
-					}
 				/>
 			)}
 

@@ -133,6 +133,10 @@ export default function TradeAction() {
 
     return baseLevels.sort((a, b) => b.price - a.price);
   }, [currentPrice]);
+  const isOrderBookLoading =
+    reportQuery.isLoading ||
+    reportQuery.isFetching ||
+    (Boolean(stockId) && !reportQuery.report && currentPrice <= 0);
   const canProceed =
     Boolean(stockId) &&
     effectiveQuantity > 0 &&
@@ -266,6 +270,10 @@ export default function TradeAction() {
                         </button>
                       );
                     })
+                  ) : isOrderBookLoading ? (
+                    <div className="px-4 py-8 text-center text-sm text-slate-400">
+                      호가 데이터를 불러오는 중입니다.
+                    </div>
                   ) : (
                     <div className="px-4 py-8 text-center text-sm text-slate-400">
                       표시할 호가 데이터가 없습니다.
