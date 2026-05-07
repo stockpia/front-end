@@ -1,3 +1,5 @@
+import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChartPanel, {
@@ -10,6 +12,10 @@ import {
 	useStocksListQuery,
 	useStockWatchlistQuery,
 } from "@/hooks/queries/useStocksListQueries";
+import { useAccountSession } from "@/hooks/useAccountSession";
+import { signoutAccount } from "@/lib/api/accounts";
+import { clearAccountSession } from "@/lib/auth/session";
+import { queryClient } from "@/lib/query/queryClient";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
@@ -27,7 +33,18 @@ const HOLDING_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 	{ value: "name", label: "종목명순" },
 ];
 
+function toErrorMessage(error: unknown) {
+	if (isAxiosError<{ error?: string }>(error)) {
+		return error.response?.data?.error ?? error.message;
+	}
+
+	return error instanceof Error
+		? error.message
+		: "요청 처리 중 오류가 발생했습니다.";
+}
+
 export default function Stocks() {
+	const accountSession = useAccountSession();
 	const [activeTab, setActiveTab] = useState<StockTab>("all");
 	const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
 	const [userSelectedTicker, setUserSelectedTicker] = useState<string | null>(
@@ -40,7 +57,12 @@ export default function Stocks() {
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
+	const [signoutErrorMessage, setSignoutErrorMessage] = useState<string | null>(
+		null,
+	);
 	const navigate = useNavigate();
+	const userId = accountSession?.userId;
+	const isSignedIn = Boolean(userId);
 
 	const listTitle = useMemo(() => {
 		switch (activeTab) {
@@ -73,32 +95,49 @@ export default function Stocks() {
 		enabled: activeTab === "all",
 	});
 	const watchlistQuery = useStockWatchlistQuery({
-		userId: "demo_user",
-		enabled: activeTab === "watchlist",
+		userId: userId ?? "",
+		enabled: activeTab === "watchlist" && isSignedIn,
 	});
 	const holdingsQuery = useHoldingsQuery({
+		userId,
 		sort: holdingsSort,
 		order: "desc",
-		enabled: true,
+		enabled: activeTab === "holding" && isSignedIn,
+	});
+	const signoutMutation = useMutation({
+		mutationFn: signoutAccount,
+		onSuccess: async () => {
+			setSignoutErrorMessage(null);
+			clearAccountSession();
+			await queryClient.invalidateQueries();
+			navigate("/login");
+		},
+		onError: (error) => {
+			setSignoutErrorMessage(toErrorMessage(error));
+		},
 	});
 
 	useEffect(() => {
-		if (watchlistQuery.stocks.length === 0) {
+		if (activeTab !== "watchlist") {
 			return;
 		}
-		setWatchlistItemsByTicker((prev) => {
-			if (Object.keys(prev).length > 0) {
-				return prev;
-			}
-			return watchlistQuery.stocks.reduce<Record<string, StockItem>>(
-				(acc, item) => {
-					acc[item.ticker] = item;
-					return acc;
-				},
-				{},
-			);
-		});
-	}, [watchlistQuery.stocks]);
+
+		if (!isSignedIn) {
+			setWatchlistItemsByTicker({});
+			return;
+		}
+
+		if (watchlistQuery.stocks.length === 0) {
+			setWatchlistItemsByTicker({});
+			return;
+		}
+		setWatchlistItemsByTicker(
+			watchlistQuery.stocks.reduce<Record<string, StockItem>>((acc, item) => {
+				acc[item.ticker] = item;
+				return acc;
+			}, {}),
+		);
+	}, [activeTab, isSignedIn, watchlistQuery.stocks]);
 
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
@@ -196,9 +235,13 @@ export default function Stocks() {
 				: stocksListQuery.isLoading;
 	const error =
 		activeTab === "holding"
-			? holdingsQuery.errorMessage
+			? isSignedIn
+				? holdingsQuery.errorMessage
+				: "보유 종목은 로그인 후 조회할 수 있습니다."
 			: activeTab === "watchlist"
-				? watchlistQuery.errorMessage
+				? isSignedIn
+					? watchlistQuery.errorMessage
+					: "관심 종목은 로그인 후 조회할 수 있습니다."
 				: stocksListQuery.errorMessage;
 
 	useEffect(() => {
@@ -227,6 +270,46 @@ export default function Stocks() {
 
 	return (
 		<div className="space-y-8 py-8">
+			<section className="rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
+				<div className="flex items-center justify-between gap-4">
+					<div>
+						<p className="text-sm font-semibold text-slate-900">
+							{isSignedIn
+								? `${accountSession?.name}님 계좌가 연동되어 있습니다.`
+								: "계좌를 연동하면 보유 종목과 관심 종목을 불러올 수 있습니다."}
+						</p>
+						<p className="mt-1 text-sm text-slate-500">
+							{isSignedIn
+								? `${accountSession?.accountNumber} / ${userId}`
+								: "한국투자증권 계좌 연동 후 맞춤 데이터를 확인하세요."}
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={() => {
+							if (isSignedIn && userId) {
+								signoutMutation.mutate({ user_id: userId });
+								return;
+							}
+							navigate("/login");
+						}}
+						disabled={signoutMutation.isPending}
+						className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+					>
+						{isSignedIn
+							? signoutMutation.isPending
+								? "로그아웃 중..."
+								: "로그아웃"
+							: "로그인"}
+					</button>
+				</div>
+				{signoutErrorMessage && (
+					<p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+						{signoutErrorMessage}
+					</p>
+				)}
+			</section>
+
 			<section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
 				<SearchBar
 					value={searchTerm}
@@ -310,7 +393,7 @@ export default function Stocks() {
 
 			<button
 				type="button"
-				onClick={() => navigate("/trades/demo_user")}
+				onClick={() => navigate(`/trades/${userId ?? "demo_user"}`)}
 				className="w-full rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] transition hover:border-slate-300 hover:shadow-[0_24px_70px_-42px_rgba(15,23,42,0.7)]"
 			>
 				<div className="flex items-start justify-between gap-4">

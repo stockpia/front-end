@@ -54,7 +54,7 @@ export async function fetchStockWatchlist(
 }
 
 export async function fetchHoldings(
-	params: { sort?: HoldingsSort; order?: StocksOrder },
+	params: { user_id?: string; sort?: HoldingsSort; order?: StocksOrder },
 	signal?: AbortSignal,
 ) {
 	const { data } = await api.get<HoldingsResponse>("/web/stocks/holdings", {

@@ -71,22 +71,25 @@ export function useStockWatchlistQuery({
 }
 
 type UseHoldingsQueryParams = {
+	userId?: string;
 	sort?: HoldingsSort;
 	order?: StocksOrder;
 	enabled?: boolean;
 };
 
 export function useHoldingsQuery({
+	userId,
 	sort = "eval_amount",
 	order = "desc",
 	enabled = true,
 }: UseHoldingsQueryParams) {
 	const query = useQuery({
-		queryKey: ["stock-holdings", sort, order],
+		queryKey: ["stock-holdings", userId, sort, order],
 		enabled,
 		queryFn: ({ signal }) =>
 			fetchHoldings(
 				{
+					user_id: userId,
 					sort,
 					order,
 				},
