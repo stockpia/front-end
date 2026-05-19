@@ -3,7 +3,6 @@ import type {
 	StocksListParams,
 	StocksListResponse,
 	StocksOrder,
-	StockWatchlistResponse,
 } from "@/types/stocks";
 
 export type HoldingsSort = "eval_amount" | "profit_rate" | "name";
@@ -36,20 +35,6 @@ export async function fetchStocksList(
 		params,
 		signal,
 	});
-	return data;
-}
-
-export async function fetchStockWatchlist(
-	userId: string,
-	signal?: AbortSignal,
-) {
-	const { data } = await api.get<StockWatchlistResponse>(
-		"/web/stocks/watchlist",
-		{
-			params: { user_id: userId },
-			signal,
-		},
-	);
 	return data;
 }
 

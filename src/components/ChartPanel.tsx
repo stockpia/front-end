@@ -83,11 +83,6 @@ export type ChartPanelProps = {
 	loading?: boolean;
 	error?: string | null;
 	plotlyJson?: unknown | null;
-	isWatchlisted?: boolean;
-	onToggleWatchlist?: () => void;
-	watchlistAriaLabel?: string;
-	showWatchlistButton?: boolean;
-	watchlistDisabled?: boolean;
 	tradeTicker?: string;
 	tradeName?: string;
 	footer?: ReactNode;
@@ -102,11 +97,6 @@ export default function ChartPanel({
 	loading = false,
 	error = null,
 	plotlyJson = null,
-	isWatchlisted = false,
-	onToggleWatchlist,
-	watchlistAriaLabel = "관심 종목 추가",
-	showWatchlistButton = false,
-	watchlistDisabled = false,
 	tradeTicker,
 	tradeName,
 	footer,
@@ -150,31 +140,6 @@ export default function ChartPanel({
 						</h2>
 						<p className="text-sm text-slate-500">{rangeLabel} 기준</p>
 					</div>
-					{(showWatchlistButton || onToggleWatchlist) && (
-						<button
-							type="button"
-							onClick={onToggleWatchlist}
-							disabled={watchlistDisabled}
-							aria-label={watchlistAriaLabel}
-							className={
-								"shrink-0 rounded-full border mr-2 border-slate-200 bg-white p-2 transition disabled:cursor-not-allowed disabled:opacity-40 " +
-								(isWatchlisted
-									? "text-rose-500"
-									: "text-slate-500 hover:text-rose-500")
-							}
-						>
-							<svg
-								viewBox="0 0 24 24"
-								fill={isWatchlisted ? "currentColor" : "none"}
-								stroke="currentColor"
-								strokeWidth="1.8"
-								className="h-5 w-5"
-								aria-hidden="true"
-							>
-								<path d="M12 21s-6.7-4.35-9.33-8.09C.8 10.22 1.19 6.2 4.12 4.44c2.01-1.21 4.54-.76 6.22 1.02L12 7.2l1.66-1.74c1.68-1.78 4.21-2.23 6.22-1.02 2.93 1.76 3.32 5.78 1.45 8.47C18.7 16.65 12 21 12 21z" />
-							</svg>
-						</button>
-					)}
 				</div>
 				<div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
 					<TypeSelect value={type} onChange={onTypeChange} />

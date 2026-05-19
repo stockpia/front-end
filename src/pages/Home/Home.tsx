@@ -186,7 +186,7 @@ export default function Home() {
 						바로 주문까지.
 					</h2>
 					<p className="mt-3 text-sm leading-6 font-semibold text-slate-500">
-						관심 종목을 고르면 실시간 가격, AI 리포트, 뉴스와 커뮤니티
+						종목을 고르면 실시간 가격, AI 리포트, 뉴스와 커뮤니티
 						흐름을 한 화면에서 확인할 수 있어요.
 					</p>
 					<Link

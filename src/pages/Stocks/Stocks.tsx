@@ -11,7 +11,6 @@ import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import {
 	useHoldingsQuery,
 	useStocksListQuery,
-	useStockWatchlistQuery,
 } from "@/hooks/queries/useStocksListQueries";
 import { useAccountSession } from "@/hooks/useAccountSession";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
@@ -52,9 +51,6 @@ export default function Stocks() {
 	const [userSelectedTicker, setUserSelectedTicker] = useState<string | null>(
 		null,
 	);
-	const [watchlistItemsByTicker, setWatchlistItemsByTicker] = useState<
-		Record<string, StockItem>
-	>({});
 	const [range, setRange] = useState<ChartRange>("1d");
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
@@ -68,8 +64,6 @@ export default function Stocks() {
 
 	const listTitle = useMemo(() => {
 		switch (activeTab) {
-			case "watchlist":
-				return "관심 종목";
 			case "holding":
 				return "보유 종목";
 			default:
@@ -96,10 +90,6 @@ export default function Stocks() {
 		order: "desc",
 		enabled: activeTab === "all",
 	});
-	const watchlistQuery = useStockWatchlistQuery({
-		userId: userId ?? "",
-		enabled: activeTab === "watchlist" && isSignedIn,
-	});
 	const holdingsQuery = useHoldingsQuery({
 		userId,
 		sort: holdingsSort,
@@ -119,28 +109,6 @@ export default function Stocks() {
 		},
 	});
 
-	useEffect(() => {
-		if (activeTab !== "watchlist") {
-			return;
-		}
-
-		if (!isSignedIn) {
-			setWatchlistItemsByTicker({});
-			return;
-		}
-
-		if (watchlistQuery.stocks.length === 0) {
-			setWatchlistItemsByTicker({});
-			return;
-		}
-		setWatchlistItemsByTicker(
-			watchlistQuery.stocks.reduce<Record<string, StockItem>>((acc, item) => {
-				acc[item.ticker] = item;
-				return acc;
-			}, {}),
-		);
-	}, [activeTab, isSignedIn, watchlistQuery.stocks]);
-
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
 			return holdingsQuery.holdings.map((stock) => ({
@@ -155,36 +123,8 @@ export default function Stocks() {
 			}));
 		}
 
-		if (activeTab === "watchlist") {
-			return Object.values(watchlistItemsByTicker);
-		}
-
 		return stocksListQuery.stocks;
-	}, [
-		activeTab,
-		holdingsQuery.holdings,
-		stocksListQuery.stocks,
-		watchlistItemsByTicker,
-	]);
-
-	const watchlistedTickers = useMemo(
-		() => new Set(Object.keys(watchlistItemsByTicker)),
-		[watchlistItemsByTicker],
-	);
-
-	const handleToggleWatchlist = (item: StockItem) => {
-		setWatchlistItemsByTicker((prev) => {
-			if (prev[item.ticker]) {
-				const next = { ...prev };
-				delete next[item.ticker];
-				return next;
-			}
-			return {
-				...prev,
-				[item.ticker]: item,
-			};
-		});
-	};
+	}, [activeTab, holdingsQuery.holdings, stocksListQuery.stocks]);
 
 	const normalizedSearchTerm = useMemo(
 		() => searchTerm.trim().toLowerCase(),
@@ -232,19 +172,13 @@ export default function Stocks() {
 	const isLoading =
 		activeTab === "holding"
 			? holdingsQuery.isLoading
-			: activeTab === "watchlist"
-				? watchlistQuery.isLoading
-				: stocksListQuery.isLoading;
+			: stocksListQuery.isLoading;
 	const error =
 		activeTab === "holding"
 			? isSignedIn
 				? holdingsQuery.errorMessage
 				: "보유 종목은 로그인 후 조회할 수 있습니다."
-			: activeTab === "watchlist"
-				? isSignedIn
-					? watchlistQuery.errorMessage
-					: "관심 종목은 로그인 후 조회할 수 있습니다."
-				: stocksListQuery.errorMessage;
+			: stocksListQuery.errorMessage;
 
 	useEffect(() => {
 		setSelectedStock((prev) => {
@@ -305,7 +239,7 @@ export default function Stocks() {
 						<p className="text-sm font-semibold text-slate-900">
 							{isSignedIn
 								? `${accountSession?.name}님 계좌가 연동되어 있습니다.`
-								: "계좌를 연동하면 보유 종목과 관심 종목을 불러올 수 있습니다."}
+								: "계좌를 연동하면 보유 종목을 불러올 수 있습니다."}
 						</p>
 						<p className="mt-1 text-sm text-slate-500">
 							{isSignedIn
@@ -368,8 +302,6 @@ export default function Stocks() {
 							setSelectedStock(item);
 							setUserSelectedTicker(item.ticker);
 						}}
-						onToggleWatchlist={handleToggleWatchlist}
-						watchlistedTickers={watchlistedTickers}
 						sortBy={sortBy}
 						onSortChange={setSortBy}
 						sortOptions={
@@ -395,10 +327,6 @@ export default function Stocks() {
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
-					isWatchlisted={watchlistedTickers.has(realtimeSelectedStock.ticker)}
-					onToggleWatchlist={() => handleToggleWatchlist(realtimeSelectedStock)}
-					watchlistAriaLabel={`${realtimeSelectedStock.name} 관심 종목 추가`}
-					showWatchlistButton
 					tradeTicker={realtimeSelectedStock.ticker}
 					tradeName={realtimeSelectedStock.name}
 					footer={
@@ -421,9 +349,6 @@ export default function Stocks() {
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
-					showWatchlistButton
-					watchlistDisabled
-					watchlistAriaLabel="종목 선택 후 관심 종목 추가"
 				/>
 			)}
 

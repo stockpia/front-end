@@ -47,9 +47,3 @@ export type StockChartResponse = {
 		generatedAt?: string;
 	};
 };
-
-export type StockWatchlistResponse = {
-	user_id: string;
-	count: number;
-	stocks: StockItem[];
-};

@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
 	fetchHoldings,
 	fetchStocksList,
-	fetchStockWatchlist,
 	type HoldingsSort,
 } from "@/lib/api/stocks/list";
 import type { StocksMarket, StocksOrder, StocksSort } from "@/types/stocks";
@@ -39,28 +38,6 @@ export function useStocksListQuery({
 				},
 				signal,
 			),
-	});
-
-	return {
-		...query,
-		errorMessage: toErrorMessage(query.error),
-		stocks: query.data?.stocks ?? [],
-	};
-}
-
-type UseStockWatchlistQueryParams = {
-	userId: string;
-	enabled?: boolean;
-};
-
-export function useStockWatchlistQuery({
-	userId,
-	enabled = true,
-}: UseStockWatchlistQueryParams) {
-	const query = useQuery({
-		queryKey: ["stock-watchlist", userId],
-		enabled,
-		queryFn: ({ signal }) => fetchStockWatchlist(userId, signal),
 	});
 
 	return {
