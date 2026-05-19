@@ -24,7 +24,7 @@ export type RangeLabel = {
   range: string;
 };
 
-export type DetailedReport = {
+type LegacyDetailedReport = {
   scopeId: string;
   period: TradePeriod;
   periodLabel: string;
@@ -72,6 +72,76 @@ export type DetailedReport = {
     returnRate: number;
   };
   insufficientPeriodNoticeDays?: number;
+};
+
+export type TradeDetailSummaryMetrics = {
+  total_buy_amount: number;
+  total_sell_amount: number;
+  realized_profit: number;
+  eval_profit: number;
+  total_profit: number;
+  total_profit_rate: number;
+  buy_trades: number;
+  sell_trades: number;
+  total_trades: number;
+};
+
+export type TradeDetailStockSummary = {
+  stock_name: string;
+  ticker: string;
+  realized_profit: number;
+  profit_rate: number;
+};
+
+export type TradeDetailRangeAnalysis = {
+  label: string;
+  range: string;
+};
+
+export type TradeDetailTradingTendency = {
+  average_holding_days: number;
+  classification: TradeDetailRangeAnalysis;
+};
+
+export type TradeDetailFrequencyChange = {
+  previous_trades: number;
+  current_trades: number;
+  change_rate: number;
+};
+
+export type TradeDetailWaterDownPattern = {
+  stock_name: string;
+  total_buy_count: number;
+  first_average_buy_price: number;
+  followup_buy_prices: number[];
+};
+
+export type TradeDetailConcentrationAnalysis = {
+  top_stock_name: string;
+  ratio: number;
+  classification: TradeDetailRangeAnalysis;
+};
+
+export type TradeDetailVolatilityAnalysis = {
+  rate: number;
+  classification: TradeDetailRangeAnalysis;
+};
+
+export type TradeDetailResponse = {
+  scope: string;
+  period: TradePeriod;
+  actual_period_days: number;
+  summary_metrics: TradeDetailSummaryMetrics;
+  by_stock_summary: TradeDetailStockSummary[];
+  trading_tendency: TradeDetailTradingTendency | null;
+  frequency_change: TradeDetailFrequencyChange | null;
+  water_down_pattern: TradeDetailWaterDownPattern | null;
+  concentration_analysis: TradeDetailConcentrationAnalysis | null;
+  volatility_analysis: TradeDetailVolatilityAnalysis | null;
+  risk_observation: string | null;
+  narrative: string | null;
+  period_insufficient: boolean;
+  period_insufficient_message: string | null;
 };
 
 export type AiMessage = {
@@ -386,7 +456,7 @@ const TRADE_RECORDS: Record<TradePeriod, TradeRecord[]> = {
   ],
 };
 
-const REPORTS: Record<TradePeriod, Record<string, DetailedReport>> = {
+const REPORTS: Record<TradePeriod, Record<string, LegacyDetailedReport>> = {
   "1m": {
     all: {
       scopeId: "all",
@@ -882,25 +952,128 @@ export function getTradeRecords(
 export function getDetailedReport(
   scopeId: string,
   period: TradePeriod,
-): DetailedReport {
+): TradeDetailResponse {
   const currentPeriodReports = REPORTS[period];
-  return currentPeriodReports[scopeId] ?? currentPeriodReports.all;
+  const report = currentPeriodReports[scopeId] ?? currentPeriodReports.all;
+  const trades = getTradeRecords(scopeId, period);
+  const buyTrades = trades.filter((trade) => trade.type === "매수").length;
+  const sellTrades = trades.filter((trade) => trade.type === "매도").length;
+  const periodDaysMap: Record<TradePeriod, number> = { "1m": 30, "3m": 90, "1y": 365 };
+
+  const byStockSummary = (() => {
+    if (report.selectedStockSummary) {
+      const stock = TRADE_SCOPE_OPTIONS.find((scope) => scope.id === scopeId);
+      return [
+        {
+          stock_name: report.selectedStockSummary.name,
+          ticker: stock?.ticker ?? scopeId,
+          realized_profit: report.selectedStockSummary.realizedProfit,
+          profit_rate: report.selectedStockSummary.returnRate,
+        },
+      ];
+    }
+
+    if (report.overallStockSummary) {
+      return [
+        {
+          stock_name: report.overallStockSummary.topStock.name,
+          ticker:
+            TRADE_SCOPE_OPTIONS.find(
+              (scope) => scope.label === report.overallStockSummary?.topStock.name,
+            )?.ticker ?? report.overallStockSummary.topStock.name,
+          realized_profit: report.overallStockSummary.topStock.realizedProfit,
+          profit_rate: report.overallStockSummary.topStock.returnRate,
+        },
+        {
+          stock_name: report.overallStockSummary.bottomStock.name,
+          ticker:
+            TRADE_SCOPE_OPTIONS.find(
+              (scope) => scope.label === report.overallStockSummary?.bottomStock.name,
+            )?.ticker ?? report.overallStockSummary.bottomStock.name,
+          realized_profit: report.overallStockSummary.bottomStock.realizedProfit,
+          profit_rate: report.overallStockSummary.bottomStock.returnRate,
+        },
+      ];
+    }
+
+    return [];
+  })();
+
+  const evalProfit = report.summary.evaluationProfit ?? 0;
+
+  return {
+    scope: scopeId === "all" ? "ALL" : scopeId,
+    period,
+    actual_period_days: report.insufficientPeriodNoticeDays ?? periodDaysMap[period],
+    summary_metrics: {
+      total_buy_amount: report.summary.totalBuyAmount,
+      total_sell_amount: report.summary.totalSellAmount,
+      realized_profit: report.summary.realizedProfit,
+      eval_profit: evalProfit,
+      total_profit: report.summary.realizedProfit + evalProfit,
+      total_profit_rate: report.summary.totalReturnRate,
+      buy_trades: buyTrades,
+      sell_trades: sellTrades,
+      total_trades: report.summary.totalTrades,
+    },
+    by_stock_summary: byStockSummary,
+    trading_tendency: {
+      average_holding_days: report.holdingTrend.averageHoldingDays,
+      classification: report.holdingTrend.classification,
+    },
+    frequency_change: report.frequencyChange
+      ? {
+          previous_trades: report.frequencyChange.previousTrades,
+          current_trades: report.frequencyChange.currentTrades,
+          change_rate: report.frequencyChange.changeRate,
+        }
+      : null,
+    water_down_pattern: report.averagingPattern
+      ? {
+          stock_name: report.averagingPattern.stockName,
+          total_buy_count: report.averagingPattern.totalBuyCount,
+          first_average_buy_price: report.averagingPattern.firstAverageBuyPrice,
+          followup_buy_prices: report.averagingPattern.followupBuyPrices,
+        }
+      : null,
+    concentration_analysis: {
+      top_stock_name: report.concentration.topStockName,
+      ratio: report.concentration.ratio,
+      classification: report.concentration.classification,
+    },
+    volatility_analysis: {
+      rate: report.volatility.rate,
+      classification: report.volatility.classification,
+    },
+    risk_observation: report.riskObservation,
+    narrative: report.flowSummary,
+    period_insufficient: Boolean(report.insufficientPeriodNoticeDays),
+    period_insufficient_message: report.insufficientPeriodNoticeDays
+      ? `선택하신 기간 전체 거래내역이 충분하지 않아 최근 ${report.insufficientPeriodNoticeDays}일 기준으로 요약했어요.`
+      : null,
+  };
 }
 
 export function buildAiAnswer(
   question: string,
-  report: DetailedReport,
+  report: TradeDetailResponse,
 ): string {
   const baseAnswer =
     AI_ANSWER_TEMPLATE[question] ??
     "현재 리포트 기준 수치와 구간 정의를 바탕으로 설명할 수 있습니다.";
 
-  const summaryLine = `현재 선택 기준(${report.scopeId === "all" ? "전체" : (report.selectedStockSummary?.name ?? report.scopeId)} · ${report.periodLabel})에서 평균 보유일 ${report.holdingTrend.averageHoldingDays}일, 상위 비중 ${report.concentration.ratio}%, 손익 변동률 ${report.volatility.rate}%입니다.`;
+  const scopeLabel =
+    report.scope === "ALL"
+      ? "전체"
+      : report.by_stock_summary[0]?.stock_name ?? report.scope;
+  const periodLabel =
+    TRADE_PERIOD_OPTIONS.find((option) => option.id === report.period)?.label ?? report.period;
+  const summaryLine = `현재 선택 기준(${scopeLabel} · ${periodLabel})에서 평균 보유일 ${report.trading_tendency?.average_holding_days ?? 0}일, 상위 비중 ${report.concentration_analysis?.ratio ?? 0}%, 손익 변동률 ${report.volatility_analysis?.rate ?? 0}%입니다.`;
 
-  const rangeLine = `구간 기준으로는 ${report.holdingTrend.classification.label}(${report.holdingTrend.classification.range}), ${report.concentration.classification.label}(${report.concentration.classification.range}), ${report.volatility.classification.label}(${report.volatility.classification.range})에 해당합니다.`;
+  const rangeLine = `구간 기준으로는 ${report.trading_tendency?.classification.label ?? "-"}(${report.trading_tendency?.classification.range ?? "-"}), ${report.concentration_analysis?.classification.label ?? "-"}(${report.concentration_analysis?.classification.range ?? "-"}), ${report.volatility_analysis?.classification.label ?? "-"}(${report.volatility_analysis?.classification.range ?? "-"})에 해당합니다.`;
 
-  const shortageLine = report.insufficientPeriodNoticeDays
-    ? `선택 기간 대비 거래내역이 부족하여 최근 ${report.insufficientPeriodNoticeDays}일 데이터 기준으로 설명하고 있어요.`
+  const shortageLine = report.period_insufficient
+    ? report.period_insufficient_message ?? ""
     : "";
 
   return [baseAnswer, summaryLine, rangeLine, shortageLine]

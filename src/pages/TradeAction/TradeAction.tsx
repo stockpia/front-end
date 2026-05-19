@@ -194,13 +194,7 @@ export default function TradeAction() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
         <div>
           <div>
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="text-sm font-medium text-slate-500 transition hover:text-slate-800">
-              이전으로
-            </button>
-            <div className="mt-3 flex items-center gap-3">
+            <div className="flex items-center gap-3">
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${content.badgeClassName}`}>
                 {content.title}

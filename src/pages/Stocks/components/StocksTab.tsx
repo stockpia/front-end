@@ -1,4 +1,4 @@
-type StockTab = "all" | "watchlist" | "holding";
+type StockTab = "all" | "holding";
 
 type StocksTabProps = {
 	value: StockTab;
@@ -8,7 +8,6 @@ type StocksTabProps = {
 export default function StocksTab({ value, onChange }: StocksTabProps) {
 	const tabs: { id: StockTab; label: string }[] = [
 		{ id: "all", label: "전체" },
-		{ id: "watchlist", label: "관심 종목" },
 		{ id: "holding", label: "보유 종목" },
 	];
 

@@ -1,6 +1,9 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { RootLayout } from "@/layouts/RootLayout";
 import AveragingCalculator from "@/pages/AveragingCalculator/AveragingCalculator";
+import Home from "@/pages/Home/Home";
 import Login from "@/pages/Login/Login";
+import MyPage from "@/pages/MyPage/MyPage";
 import StockDetail from "@/pages/StockDetail/StockDetail";
 import Stocks from "@/pages/Stocks/Stocks";
 import TradeAction from "@/pages/TradeAction/TradeAction";
@@ -10,24 +13,33 @@ import TradeDetail from "@/pages/TradeDetail/TradeDetail";
 export default function AppRouter() {
 	return (
 		<BrowserRouter>
-			<Routes>
-				{/* 1. 홈 */}
-				<Route path="/" element={<Stocks />} />
+			<RootLayout>
+				<Routes>
+					{/* 1. 홈 */}
+					<Route path="/" element={<Home />} />
+					<Route path="/stocks" element={<Stocks />} />
 
-				{/* 2. 종목 상세 */}
-				<Route path="/stocks/:stockId" element={<StockDetail />} />
-				<Route path="/stocks/:stockId/:tradeType" element={<TradeAction />} />
-				<Route path="/stocks/:stockId/pending" element={<TradePendingList />} />
+					{/* 2. 종목 상세 */}
+					<Route path="/stocks/:stockId" element={<StockDetail />} />
+					<Route path="/stocks/:stockId/:tradeType" element={<TradeAction />} />
+					<Route
+						path="/stocks/:stockId/pending"
+						element={<TradePendingList />}
+					/>
 
-				{/* 3. 거래내역 상세 */}
-				<Route path="/trades/:userId" element={<TradeDetail />} />
+					{/* 3. 거래내역 상세 */}
+					<Route path="/trades/:userId" element={<TradeDetail />} />
 
-				{/* 5. 주식 계좌 연동 로그인 */}
-				<Route path="/login" element={<Login />} />
+					{/* 5. 주식 계좌 연동 로그인 */}
+					<Route path="/login" element={<Login />} />
 
-				{/* 4. 물타기 계산기 */}
-				<Route path="/calculator/:stockId" element={<AveragingCalculator />} />
-			</Routes>
+					{/* 6. 마이페이지 */}
+					<Route path="/mypage" element={<MyPage />} />
+
+					{/* 4. 물타기 계산기 */}
+					<Route path="/calculator/:stockId" element={<AveragingCalculator />} />
+				</Routes>
+			</RootLayout>
 		</BrowserRouter>
 	);
 }
