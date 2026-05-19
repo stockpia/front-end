@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AveragingCalculator from "@/pages/AveragingCalculator/AveragingCalculator";
+import Home from "@/pages/Home/Home";
 import Login from "@/pages/Login/Login";
 import StockDetail from "@/pages/StockDetail/StockDetail";
 import Stocks from "@/pages/Stocks/Stocks";
@@ -12,7 +13,8 @@ export default function AppRouter() {
 		<BrowserRouter>
 			<Routes>
 				{/* 1. 홈 */}
-				<Route path="/" element={<Stocks />} />
+				<Route path="/" element={<Home />} />
+				<Route path="/stocks" element={<Stocks />} />
 
 				{/* 2. 종목 상세 */}
 				<Route path="/stocks/:stockId" element={<StockDetail />} />

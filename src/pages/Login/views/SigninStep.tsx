@@ -31,7 +31,7 @@ export default function SigninStep() {
 				phone: variables.phone,
 				accountNumber: response.account_number,
 			});
-			navigate("/");
+			navigate("/stocks");
 		},
 		onError: (error) => {
 			setErrorMessage(toErrorMessage(error));

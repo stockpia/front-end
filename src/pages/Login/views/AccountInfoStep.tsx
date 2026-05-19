@@ -210,7 +210,7 @@ export default function AccountInfoStep({
 					"이제 주토피아에서\n해당 계좌를 기반으로\n다양한 리포트와 서비스를\n사용할 수 있어요 😁"
 				}
 				actionLabel="메인 화면으로"
-				onAction={() => navigate("/")}
+				onAction={() => navigate("/stocks")}
 				secondaryActionLabel="챗봇으로"
 				onSecondaryAction={handleMoveToChatbot}
 			/>
