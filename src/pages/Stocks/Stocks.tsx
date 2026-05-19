@@ -6,6 +6,7 @@ import ChartPanel, {
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
+import StockTickerSummary from "@/components/StockTickerSummary";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import {
 	useHoldingsQuery,
@@ -13,6 +14,7 @@ import {
 	useStockWatchlistQuery,
 } from "@/hooks/queries/useStocksListQueries";
 import { useAccountSession } from "@/hooks/useAccountSession";
+import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
 import { signoutAccount } from "@/lib/api/accounts";
 import { clearAccountSession } from "@/lib/auth/session";
 import { queryClient } from "@/lib/query/queryClient";
@@ -267,6 +269,33 @@ export default function Stocks() {
 		range,
 		type: chartType,
 	});
+	const stockTickerSocket = useStockTickerSocket(selectedSymbol);
+	const realtimeSelectedStock = useMemo(() => {
+		if (!effectiveSelectedStock || !stockTickerSocket.ticker) {
+			return effectiveSelectedStock;
+		}
+
+		return {
+			...effectiveSelectedStock,
+			current_price: stockTickerSocket.ticker.price,
+			change_rate: stockTickerSocket.ticker.change_rate,
+		};
+	}, [effectiveSelectedStock, stockTickerSocket.ticker]);
+	const realtimeSortedStocks = useMemo(() => {
+		if (!stockTickerSocket.ticker) {
+			return sortedStocks;
+		}
+
+		return sortedStocks.map((stock) =>
+			stock.ticker === stockTickerSocket.ticker?.symbol
+				? {
+						...stock,
+						current_price: stockTickerSocket.ticker.price,
+						change_rate: stockTickerSocket.ticker.change_rate,
+					}
+				: stock,
+		);
+	}, [sortedStocks, stockTickerSocket.ticker]);
 
 	return (
 		<div className="space-y-8 py-8">
@@ -325,11 +354,11 @@ export default function Stocks() {
 				<div className="mt-6">
 					<StocksList
 						title={listTitle}
-						items={sortedStocks}
-						selectedId={effectiveSelectedStock?.ticker ?? ""}
+						items={realtimeSortedStocks}
+						selectedId={realtimeSelectedStock?.ticker ?? ""}
 						onSelect={(item) => {
 							if (
-								item.ticker === effectiveSelectedStock?.ticker &&
+								item.ticker === realtimeSelectedStock?.ticker &&
 								userSelectedTicker === item.ticker
 							) {
 								const nameParam = encodeURIComponent(item.name);
@@ -356,9 +385,9 @@ export default function Stocks() {
 				</div>
 			</section>
 
-			{effectiveSelectedStock ? (
+			{realtimeSelectedStock ? (
 				<ChartPanel
-					symbol={`${effectiveSelectedStock.name} (${effectiveSelectedStock.ticker})`}
+					symbol={`${realtimeSelectedStock.name} (${realtimeSelectedStock.ticker})`}
 					range={range}
 					onRangeChange={setRange}
 					type={chartType}
@@ -366,14 +395,21 @@ export default function Stocks() {
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
-					isWatchlisted={watchlistedTickers.has(effectiveSelectedStock.ticker)}
-					onToggleWatchlist={() =>
-						handleToggleWatchlist(effectiveSelectedStock)
-					}
-					watchlistAriaLabel={`${effectiveSelectedStock.name} 관심 종목 추가`}
+					isWatchlisted={watchlistedTickers.has(realtimeSelectedStock.ticker)}
+					onToggleWatchlist={() => handleToggleWatchlist(realtimeSelectedStock)}
+					watchlistAriaLabel={`${realtimeSelectedStock.name} 관심 종목 추가`}
 					showWatchlistButton
-					tradeTicker={effectiveSelectedStock.ticker}
-					tradeName={effectiveSelectedStock.name}
+					tradeTicker={realtimeSelectedStock.ticker}
+					tradeName={realtimeSelectedStock.name}
+					footer={
+						<StockTickerSummary
+							ticker={stockTickerSocket.ticker}
+							fallbackPrice={realtimeSelectedStock.current_price}
+							fallbackChangeRate={realtimeSelectedStock.change_rate}
+							errorMessage={stockTickerSocket.errorMessage}
+							isConnected={stockTickerSocket.isConnected}
+						/>
+					}
 				/>
 			) : (
 				<ChartPanel

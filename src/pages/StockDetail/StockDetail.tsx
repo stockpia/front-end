@@ -4,9 +4,11 @@ import ChartPanel, {
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
+import StockTickerSummary from "@/components/StockTickerSummary";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
 import { useStockWatchlistQuery } from "@/hooks/queries/useStocksListQueries";
+import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
 import StockReportSection from "@/pages/StockDetail/views/StockReportSection";
 import type { StockItem } from "@/types/stocks";
@@ -47,8 +49,23 @@ export default function StockDetail() {
 		symbol: stockId,
 		enabled: activeInsightTab === "report",
 	});
+	const stockTickerSocket = useStockTickerSocket(stockId);
 
 	const report = stockReportQuery.report;
+	const realtimeReport = useMemo(() => {
+		if (!report || !stockTickerSocket.ticker) {
+			return report;
+		}
+
+		return {
+			...report,
+			summary: {
+				...report.summary,
+				current_price: stockTickerSocket.ticker.price,
+				price_change_pct: stockTickerSocket.ticker.change_rate,
+			},
+		};
+	}, [report, stockTickerSocket.ticker]);
 
 	useEffect(() => {
 		if (activeInsightTab !== "report") {
@@ -104,8 +121,14 @@ export default function StockDetail() {
 					name: searchParams.get("name")
 						? decodeURIComponent(searchParams.get("name") as string)
 						: stockId,
-					current_price: report?.summary.current_price ?? 0,
-					change_rate: report?.summary.price_change_pct ?? 0,
+					current_price:
+						stockTickerSocket.ticker?.price ??
+						realtimeReport?.summary.current_price ??
+						0,
+					change_rate:
+						stockTickerSocket.ticker?.change_rate ??
+						realtimeReport?.summary.price_change_pct ??
+						0,
 					volume: 0,
 				},
 			};
@@ -131,6 +154,15 @@ export default function StockDetail() {
 					searchParams.get("name")
 						? decodeURIComponent(searchParams.get("name") as string)
 						: stockId
+				}
+				footer={
+					<StockTickerSummary
+						ticker={stockTickerSocket.ticker}
+						fallbackPrice={realtimeReport?.summary.current_price}
+						fallbackChangeRate={realtimeReport?.summary.price_change_pct}
+						errorMessage={stockTickerSocket.errorMessage}
+						isConnected={stockTickerSocket.isConnected}
+					/>
 				}
 			/>
 
@@ -178,7 +210,7 @@ export default function StockDetail() {
 						isLoading={stockReportQuery.isLoading}
 						isError={stockReportQuery.isError}
 						errorMessage={stockReportQuery.errorMessage}
-						report={report}
+						report={realtimeReport}
 					/>
 				)}
 
