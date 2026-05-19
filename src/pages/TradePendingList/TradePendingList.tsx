@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 type PendingFilter = "all" | "sell" | "buy";
 
@@ -8,7 +8,6 @@ function formatCurrency(value: number) {
 }
 
 export default function TradePendingList() {
-  const navigate = useNavigate();
   const { stockId } = useParams();
   const [searchParams] = useSearchParams();
   const [activeFilter, setActiveFilter] = useState<PendingFilter>("all");
@@ -58,13 +57,7 @@ export default function TradePendingList() {
   return (
     <div className="space-y-6 py-8">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="text-sm font-medium text-slate-500 transition hover:text-slate-800">
-          이전으로
-        </button>
-        <h1 className="mt-3 text-2xl font-semibold text-slate-900">
+        <h1 className="text-2xl font-semibold text-slate-900">
           체결 대기 목록
         </h1>
         <p className="mt-2 text-sm text-slate-600">
