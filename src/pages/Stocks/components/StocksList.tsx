@@ -6,6 +6,11 @@ type StocksListProps = {
   items: StockItem[];
   selectedId: string;
   onSelect: (item: StockItem) => void;
+  notice?: string | null;
+  actionLabel?: string;
+  onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
   sortBy: StockSort;
   onSortChange: (sortBy: StockSort) => void;
   sortOptions: { value: StockSort; label: string }[];
@@ -20,6 +25,11 @@ export default function StocksList({
   items,
   selectedId,
   onSelect,
+  notice = null,
+  actionLabel,
+  onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
   sortBy,
   onSortChange,
   sortOptions,
@@ -32,26 +42,28 @@ export default function StocksList({
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <div className="flex items-center gap-2 text-xs font-semibold">
-          {sortOptions.map((option, index) => {
-            const isActive = option.value === sortBy;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onSortChange(option.value)}
-                className={
-                  "transition " +
-                  (isActive
-                    ? "text-slate-900"
-                    : "text-slate-400 hover:text-slate-600")
-                }>
-                {option.label}
-                {index < sortOptions.length - 1 ? " |" : ""}
-              </button>
-            );
-          })}
-        </div>
+        {!notice && (
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            {sortOptions.map((option, index) => {
+              const isActive = option.value === sortBy;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onSortChange(option.value)}
+                  className={
+                    "transition " +
+                    (isActive
+                      ? "text-slate-900"
+                      : "text-slate-400 hover:text-slate-600")
+                  }>
+                  {option.label}
+                  {index < sortOptions.length - 1 ? " |" : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
       {isLoading ? (
         <div className="mt-4 flex justify-center">
@@ -64,12 +76,35 @@ export default function StocksList({
               목록을 불러오지 못했습니다. {error}
             </p>
           )}
-          {!error && items.length === 0 && (
+          {!error && notice && (
+            <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-5">
+              <p className="text-sm font-bold text-slate-900">{notice}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {actionLabel && onAction && (
+                  <button
+                    type="button"
+                    onClick={onAction}
+                    className="w-full rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
+                    {actionLabel}
+                  </button>
+                )}
+                {secondaryActionLabel && onSecondaryAction && (
+                  <button
+                    type="button"
+                    onClick={onSecondaryAction}
+                    className="w-full rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
+                    {secondaryActionLabel}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          {!error && !notice && items.length === 0 && (
             <p className="mt-4 text-xs font-semibold text-slate-400">
               {emptyLabel}
             </p>
           )}
-          {!error && items.length > 0 && (
+          {!error && !notice && items.length > 0 && (
             <ul className="mt-4 max-h-[360px] space-y-3 overflow-y-auto">
               {items.map((item) => {
                 const isActive = item.ticker === selectedId;

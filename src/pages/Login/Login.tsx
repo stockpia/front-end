@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import LoginStepHeader from "./components/LoginStepHeader";
 import AccountInfoStep from "./views/AccountInfoStep";
 import BasicInfoStep from "./views/BasicInfoStep";
@@ -7,7 +8,9 @@ import SigninStep from "./views/SigninStep";
 const TOTAL_STEPS = 2;
 
 export default function Login() {
-	const [mode, setMode] = useState<"signup" | "signin">("signup");
+	const [searchParams] = useSearchParams();
+	const initialMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
+	const [mode, setMode] = useState<"signup" | "signin">(initialMode);
 	const [currentStep, setCurrentStep] = useState(1);
 	const [name, setName] = useState("");
 	const [birthDate, setBirthDate] = useState("");
@@ -56,21 +59,21 @@ export default function Login() {
 				<div className="mb-4 inline-flex rounded-2xl border border-slate-200 bg-white p-1">
 					<button
 						type="button"
-						onClick={() => setMode("signup")}
-						className={`rounded-xl px-4 py-2 text-sm font-medium ${
-							mode === "signup" ? "bg-slate-900 text-white" : "text-slate-600"
-						}`}
-					>
-						회원가입
-					</button>
-					<button
-						type="button"
 						onClick={() => setMode("signin")}
 						className={`rounded-xl px-4 py-2 text-sm font-medium ${
 							mode === "signin" ? "bg-slate-900 text-white" : "text-slate-600"
 						}`}
 					>
 						로그인
+					</button>
+					<button
+						type="button"
+						onClick={() => setMode("signup")}
+						className={`rounded-xl px-4 py-2 text-sm font-medium ${
+							mode === "signup" ? "bg-slate-900 text-white" : "text-slate-600"
+						}`}
+					>
+						회원가입
 					</button>
 				</div>
 				{mode === "signup" && (

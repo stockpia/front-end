@@ -177,8 +177,12 @@ export default function Stocks() {
 		activeTab === "holding"
 			? isSignedIn
 				? holdingsQuery.errorMessage
-				: "보유 종목은 로그인 후 조회할 수 있습니다."
+				: null
 			: stocksListQuery.errorMessage;
+	const notice =
+		activeTab === "holding" && !isSignedIn
+			? "보유 종목은 로그인 후 조회할 수 있습니다."
+			: null;
 
 	useEffect(() => {
 		setSelectedStock((prev) => {
@@ -312,6 +316,11 @@ export default function Stocks() {
 						metaLabel={activeTab === "holding" ? "보유량" : "거래량"}
 						isLoading={isLoading}
 						error={error}
+						notice={notice}
+						actionLabel={notice ? "로그인" : undefined}
+						onAction={notice ? () => navigate("/login") : undefined}
+						secondaryActionLabel={notice ? "회원가입" : undefined}
+						onSecondaryAction={notice ? () => navigate("/login?mode=signup") : undefined}
 						emptyLabel={normalizedSearchTerm ? "없는 종목입니다." : undefined}
 					/>
 				</div>
