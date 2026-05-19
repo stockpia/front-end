@@ -3,6 +3,7 @@ import { RootLayout } from "@/layouts/RootLayout";
 import AveragingCalculator from "@/pages/AveragingCalculator/AveragingCalculator";
 import Home from "@/pages/Home/Home";
 import Login from "@/pages/Login/Login";
+import MyPage from "@/pages/MyPage/MyPage";
 import StockDetail from "@/pages/StockDetail/StockDetail";
 import Stocks from "@/pages/Stocks/Stocks";
 import TradeAction from "@/pages/TradeAction/TradeAction";
@@ -31,6 +32,9 @@ export default function AppRouter() {
 
 					{/* 5. 주식 계좌 연동 로그인 */}
 					<Route path="/login" element={<Login />} />
+
+					{/* 6. 마이페이지 */}
+					<Route path="/mypage" element={<MyPage />} />
 
 					{/* 4. 물타기 계산기 */}
 					<Route path="/calculator/:stockId" element={<AveragingCalculator />} />
