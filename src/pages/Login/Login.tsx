@@ -3,9 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import LoginStepHeader from "./components/LoginStepHeader";
 import AccountInfoStep from "./views/AccountInfoStep";
 import BasicInfoStep from "./views/BasicInfoStep";
+import NotificationInfoStep from "./views/NotificationInfoStep";
 import SigninStep from "./views/SigninStep";
+import type { AccountEnvironment } from "@/types/accounts";
 
-const TOTAL_STEPS = 2;
+const TOTAL_STEPS = 3;
 
 export default function Login() {
 	const [searchParams] = useSearchParams();
@@ -15,6 +17,10 @@ export default function Login() {
 	const [name, setName] = useState("");
 	const [birthDate, setBirthDate] = useState("");
 	const [phoneNumber, setPhoneNumber] = useState("");
+	const [accountNumber, setAccountNumber] = useState("");
+	const [appKey, setAppKey] = useState("");
+	const [appSecretKey, setAppSecretKey] = useState("");
+	const [environment, setEnvironment] = useState<AccountEnvironment>("vps");
 
 	const goNext = () => {
 		setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
@@ -43,11 +49,32 @@ export default function Login() {
 			);
 		}
 
+		if (currentStep === 2) {
+			return (
+				<AccountInfoStep
+					accountNumber={accountNumber}
+					appKey={appKey}
+					appSecretKey={appSecretKey}
+					environment={environment}
+					onChangeAccountNumber={setAccountNumber}
+					onChangeAppKey={setAppKey}
+					onChangeAppSecretKey={setAppSecretKey}
+					onChangeEnvironment={setEnvironment}
+					onPrev={goPrev}
+					onNext={goNext}
+				/>
+			);
+		}
+
 		return (
-			<AccountInfoStep
+			<NotificationInfoStep
 				name={name}
 				birthDate={birthDate}
 				phoneNumber={phoneNumber}
+				accountNumber={accountNumber}
+				appKey={appKey}
+				appSecretKey={appSecretKey}
+				environment={environment}
 				onPrev={goPrev}
 			/>
 		);

@@ -1,11 +1,23 @@
 import {
+	BarChart3,
 	BellRing,
+	ChartNoAxesCombined,
+	ChevronRight,
 	MessageCircle,
+	Scale,
 	ShieldCheck,
+	TrendingUp,
 	UserRound,
+	Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAccountSession } from "@/hooks/useAccountSession";
+import {
+	getInvestmentProfile,
+	subscribeInvestmentProfile,
+	type InvestmentProfile,
+} from "@/lib/investmentProfile";
 
 type AccountMode = "mock" | "real";
 type BriefingSetting = "marketBriefing" | "weekly";
@@ -41,8 +53,16 @@ export default function MyPage() {
 	const [phone, setPhone] = useState(accountSession?.phone ?? "");
 	const [email, setEmail] = useState("mate@example.com");
 	const [accountMode, setAccountMode] = useState<AccountMode>("mock");
+	const [investmentProfile, setInvestmentProfile] =
+		useState<InvestmentProfile | null>(() => getInvestmentProfile());
 	const accountNumber = accountSession?.accountNumber ?? "연동된 계좌 없음";
 	const accountModeLabel = accountMode === "mock" ? "모의" : "실전";
+
+	useEffect(() => {
+		return subscribeInvestmentProfile(() => {
+			setInvestmentProfile(getInvestmentProfile());
+		});
+	}, []);
 
 	const handleBriefingChange = (key: BriefingSetting, checked: boolean) => {
 		setBriefingSettings((prev) => ({
@@ -67,6 +87,16 @@ export default function MyPage() {
 
 			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
 				<SectionTitle
+					icon={<ChartNoAxesCombined className="h-5 w-5" />}
+					title="내 투자 성향"
+				/>
+				<div className="mt-5">
+					<InvestmentProfilePanel profile={investmentProfile} />
+				</div>
+			</section>
+
+			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+				<SectionTitle
 					icon={<BellRing className="h-5 w-5" />}
 					title="서비스 설정"
 				/>
@@ -77,9 +107,7 @@ export default function MyPage() {
 							checked={briefingSettings[option.key]}
 							label={option.label}
 							description={option.description}
-							onChange={(checked) =>
-								handleBriefingChange(option.key, checked)
-							}
+							onChange={(checked) => handleBriefingChange(option.key, checked)}
 						/>
 					))}
 				</div>
@@ -154,6 +182,82 @@ export default function MyPage() {
 			</section>
 		</div>
 	);
+}
+
+type InvestmentProfilePanelProps = {
+	profile: InvestmentProfile | null;
+};
+
+function InvestmentProfilePanel({ profile }: InvestmentProfilePanelProps) {
+	return (
+		<div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+			<div className="flex items-start gap-3">
+				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+					<ChartNoAxesCombined className="h-5 w-5" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<h3 className="mt-1 text-lg font-semibold text-slate-900">
+						{profile ? (
+							<InvestmentProfileResultLabel
+								level={profile.result.level}
+								name={`${profile.result.name} · ${profile.result.score}점`}
+							/>
+						) : (
+							"아직 설정되지 않았습니다"
+						)}
+					</h3>
+					<p className="mt-1 text-xs leading-5 text-slate-500">
+						{profile
+							? profile.result.feature
+							: "5개 문항으로 위험 감내도와 투자 행동 양식을 점수화합니다."}
+					</p>
+				</div>
+			</div>
+			<Link
+				to="/mypage/investment-profile"
+				className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+			>
+				{profile ? "재설정하러 가기" : "성향 설정하기"}
+				<ChevronRight className="h-4 w-4" />
+			</Link>
+		</div>
+	);
+}
+
+type InvestmentProfileResultLabelProps = {
+	level: 1 | 2 | 3 | 4 | 5;
+	name: string;
+};
+
+function InvestmentProfileResultLabel({
+	level,
+	name,
+}: InvestmentProfileResultLabelProps) {
+	const Icon = getInvestmentProfileIcon(level);
+
+	return (
+		<span className="inline-flex items-center gap-2">
+			<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white">
+				<Icon className="h-4 w-4" />
+			</span>
+			{name}
+		</span>
+	);
+}
+
+function getInvestmentProfileIcon(level: 1 | 2 | 3 | 4 | 5) {
+	switch (level) {
+		case 1:
+			return ShieldCheck;
+		case 2:
+			return Scale;
+		case 3:
+			return BarChart3;
+		case 4:
+			return TrendingUp;
+		case 5:
+			return Zap;
+	}
 }
 
 type SectionTitleProps = {

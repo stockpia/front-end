@@ -3,7 +3,7 @@ type LoginStepHeaderProps = {
   totalSteps: number;
 };
 
-const STEP_LABELS = ["기본 정보", "계좌 정보"];
+const STEP_LABELS = ["기본 정보", "계좌 정보", "알림 설정"];
 
 export default function LoginStepHeader({
   currentStep,
