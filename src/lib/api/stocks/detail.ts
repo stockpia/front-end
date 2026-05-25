@@ -12,7 +12,7 @@ export async function fetchTradeDetail(
   signal?: AbortSignal,
 ) {
   const { data } = await api.get<TradeDetailResponse>(
-    `web/stocks/${symbol}/detail`,
+    `/web/stocks/${symbol}/detail`,
     {
       params,
       signal,
