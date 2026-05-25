@@ -4,14 +4,14 @@ import { CircleHelp, ExternalLink, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
-import { signupAccount } from "@/lib/api/accounts";
-import { setAccountSession } from "@/lib/auth/session";
+import { connectKisAccount } from "@/lib/api/accounts";
+import { getAccountSession, setAccountSession } from "@/lib/auth/session";
 import type { AccountEnvironment } from "@/types/accounts";
 
 type AccountInfoStepProps = {
 	name: string;
-	birthDate: string;
 	phoneNumber: string;
+	userId: string | null;
 	onPrev: () => void;
 };
 
@@ -23,7 +23,7 @@ function toErrorMessage(error: unknown) {
 		}>(error)
 	) {
 		const { error: message, detail } = error.response?.data ?? {};
-		return [message, detail].filter(Boolean).join(" ");
+		return [message, detail].filter(Boolean).join(" ") || error.message;
 	}
 
 	return error instanceof Error
@@ -33,8 +33,8 @@ function toErrorMessage(error: unknown) {
 
 export default function AccountInfoStep({
 	name,
-	birthDate,
 	phoneNumber,
+	userId,
 	onPrev,
 }: AccountInfoStepProps) {
 	const navigate = useNavigate();
@@ -46,15 +46,17 @@ export default function AccountInfoStep({
 	const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 	const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
 
-	const signupMutation = useMutation({
-		mutationFn: signupAccount,
+	const connectMutation = useMutation({
+		mutationFn: connectKisAccount,
 		onSuccess: (response, variables) => {
 			setErrorMessage(null);
+			const existing = getAccountSession();
 			setAccountSession({
-				userId: variables.user_id?.trim() || "default_user",
-				name: response.name,
-				phone: variables.phone,
-				accountNumber: response.account_number,
+				userId: variables.user_id,
+				name: existing?.name ?? name,
+				phone: existing?.phone ?? phoneNumber,
+				accountNumber:
+					response.account_number ?? variables.account_number,
 			});
 			setIsSuccessModalOpen(true);
 		},
@@ -64,13 +66,11 @@ export default function AccountInfoStep({
 	});
 
 	const isSubmitDisabled =
-		!name.trim() ||
-		!birthDate.trim() ||
-		!phoneNumber.trim() ||
+		!userId ||
 		!accountNumber.trim() ||
 		!appKey.trim() ||
 		!appSecretKey.trim() ||
-		signupMutation.isPending;
+		connectMutation.isPending;
 
 	const handleMoveToChatbot = () => {
 		window.close();
@@ -85,10 +85,14 @@ export default function AccountInfoStep({
 	};
 
 	const handleSubmit = () => {
-		signupMutation.mutate({
-			name: name.trim(),
-			birthdate: birthDate.trim(),
-			phone: phoneNumber.trim(),
+		if (!userId) {
+			setErrorMessage(
+				"사용자 식별자가 없습니다. 이전 단계에서 회원가입을 먼저 진행해주세요.",
+			);
+			return;
+		}
+		connectMutation.mutate({
+			user_id: userId,
 			account_number: accountNumber.trim(),
 			app_key: appKey.trim(),
 			app_secret_key: appSecretKey.trim(),
@@ -198,7 +202,7 @@ export default function AccountInfoStep({
 					disabled={isSubmitDisabled}
 					className="rounded-lg bg-primary px-5 py-2 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					{signupMutation.isPending ? "연동 중..." : "연동 완료"}
+					{connectMutation.isPending ? "연동 중..." : "연동 완료"}
 				</button>
 			</div>
 

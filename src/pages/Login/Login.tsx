@@ -15,6 +15,8 @@ export default function Login() {
 	const [name, setName] = useState("");
 	const [birthDate, setBirthDate] = useState("");
 	const [phoneNumber, setPhoneNumber] = useState("");
+	const [password, setPassword] = useState("");
+	const [signedUpUserId, setSignedUpUserId] = useState<string | null>(null);
 
 	const goNext = () => {
 		setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
@@ -22,6 +24,11 @@ export default function Login() {
 
 	const goPrev = () => {
 		setCurrentStep((prev) => Math.max(prev - 1, 1));
+	};
+
+	const handleSignupSuccess = (userId: string) => {
+		setSignedUpUserId(userId);
+		goNext();
 	};
 
 	const renderStepView = () => {
@@ -35,10 +42,12 @@ export default function Login() {
 					name={name}
 					birthDate={birthDate}
 					phoneNumber={phoneNumber}
+					password={password}
 					onChangeName={setName}
 					onChangeBirthDate={setBirthDate}
 					onChangePhoneNumber={setPhoneNumber}
-					onNext={goNext}
+					onChangePassword={setPassword}
+					onSignupSuccess={handleSignupSuccess}
 				/>
 			);
 		}
@@ -46,8 +55,8 @@ export default function Login() {
 		return (
 			<AccountInfoStep
 				name={name}
-				birthDate={birthDate}
 				phoneNumber={phoneNumber}
+				userId={signedUpUserId}
 				onPrev={goPrev}
 			/>
 		);

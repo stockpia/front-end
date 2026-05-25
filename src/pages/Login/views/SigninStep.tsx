@@ -17,8 +17,8 @@ function toErrorMessage(error: unknown) {
 
 export default function SigninStep() {
 	const navigate = useNavigate();
-	const [name, setName] = useState("");
 	const [phone, setPhone] = useState("");
+	const [password, setPassword] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const signinMutation = useMutation({
@@ -29,7 +29,6 @@ export default function SigninStep() {
 				userId: response.user_id,
 				name: response.name,
 				phone: variables.phone,
-				accountNumber: response.account_number,
 			});
 			navigate("/stocks");
 		},
@@ -39,22 +38,12 @@ export default function SigninStep() {
 	});
 
 	const isSubmitDisabled =
-		!name.trim() || !phone.trim() || signinMutation.isPending;
+		!phone.trim() || !password.trim() || signinMutation.isPending;
 
 	return (
 		<section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
 			<h2 className="text-xl font-semibold">기존 사용자 로그인</h2>
 			<div className="mt-5 space-y-8 text-left">
-				<label className="block">
-					<span className="mb-1 block text-sm">이름</span>
-					<input
-						className="w-full rounded-md border px-3 py-2"
-						type="text"
-						placeholder="홍길동"
-						value={name}
-						onChange={(event) => setName(event.target.value)}
-					/>
-				</label>
 				<label className="block">
 					<span className="mb-1 block text-sm">전화번호</span>
 					<input
@@ -63,6 +52,18 @@ export default function SigninStep() {
 						placeholder="010-1234-5678"
 						value={phone}
 						onChange={(event) => setPhone(event.target.value)}
+						autoComplete="username"
+					/>
+				</label>
+				<label className="block">
+					<span className="mb-1 block text-sm">비밀번호</span>
+					<input
+						className="w-full rounded-md border px-3 py-2"
+						type="password"
+						placeholder="비밀번호"
+						value={password}
+						onChange={(event) => setPassword(event.target.value)}
+						autoComplete="current-password"
 					/>
 				</label>
 			</div>
@@ -78,8 +79,8 @@ export default function SigninStep() {
 					type="button"
 					onClick={() => {
 						signinMutation.mutate({
-							name: name.trim(),
 							phone: phone.trim(),
+							password,
 						});
 					}}
 					disabled={isSubmitDisabled}

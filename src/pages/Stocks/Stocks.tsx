@@ -1,5 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChartPanel, {
@@ -14,7 +12,6 @@ import {
 } from "@/hooks/queries/useStocksListQueries";
 import { useAccountSession } from "@/hooks/useAccountSession";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
-import { signoutAccount } from "@/lib/api/accounts";
 import { clearAccountSession } from "@/lib/auth/session";
 import { queryClient } from "@/lib/query/queryClient";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
@@ -34,16 +31,6 @@ const HOLDING_SORT_OPTIONS: { value: StockSort; label: string }[] = [
 	{ value: "name", label: "종목명순" },
 ];
 
-function toErrorMessage(error: unknown) {
-	if (isAxiosError<{ error?: string }>(error)) {
-		return error.response?.data?.error ?? error.message;
-	}
-
-	return error instanceof Error
-		? error.message
-		: "요청 처리 중 오류가 발생했습니다.";
-}
-
 export default function Stocks() {
 	const accountSession = useAccountSession();
 	const [activeTab, setActiveTab] = useState<StockTab>("all");
@@ -55,9 +42,6 @@ export default function Stocks() {
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
-	const [signoutErrorMessage, setSignoutErrorMessage] = useState<string | null>(
-		null,
-	);
 	const navigate = useNavigate();
 	const userId = accountSession?.userId;
 	const isSignedIn = Boolean(userId);
@@ -96,18 +80,11 @@ export default function Stocks() {
 		order: "desc",
 		enabled: activeTab === "holding" && isSignedIn,
 	});
-	const signoutMutation = useMutation({
-		mutationFn: signoutAccount,
-		onSuccess: async () => {
-			setSignoutErrorMessage(null);
-			clearAccountSession();
-			await queryClient.invalidateQueries();
-			navigate("/login");
-		},
-		onError: (error) => {
-			setSignoutErrorMessage(toErrorMessage(error));
-		},
-	});
+	const handleSignout = async () => {
+		clearAccountSession();
+		await queryClient.invalidateQueries();
+		navigate("/login");
+	};
 
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
@@ -254,27 +231,17 @@ export default function Stocks() {
 					<button
 						type="button"
 						onClick={() => {
-							if (isSignedIn && userId) {
-								signoutMutation.mutate({ user_id: userId });
+							if (isSignedIn) {
+								void handleSignout();
 								return;
 							}
 							navigate("/login");
 						}}
-						disabled={signoutMutation.isPending}
 						className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
 					>
-						{isSignedIn
-							? signoutMutation.isPending
-								? "로그아웃 중..."
-								: "로그아웃"
-							: "로그인"}
+						{isSignedIn ? "로그아웃" : "로그인"}
 					</button>
 				</div>
-				{signoutErrorMessage && (
-					<p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-						{signoutErrorMessage}
-					</p>
-				)}
 			</section>
 
 			<section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
