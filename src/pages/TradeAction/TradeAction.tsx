@@ -1,507 +1,543 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
-import { useHoldingsQuery } from "@/hooks/queries/useStocksListQueries";
+import {
+	useHoldingsQuery,
+	useStockOrderBookQuery,
+} from "@/hooks/queries/useStocksListQueries";
 
 type TradeType = "buy" | "sell";
 type OrderMode = "market" | "current" | "limit";
 type OrderBookLevel = {
-  price: number;
-  side: "sell" | "buy";
-  quantity: number;
-  total: number;
+	price: number;
+	side: "sell" | "buy";
+	quantity: number;
+	total: number;
 };
 
 const QUANTITY_RATIO_OPTIONS = [10, 25, 50] as const;
 
 const TRADE_CONTENT: Record<
-  TradeType,
-  {
-    title: string;
-    description: string;
-    buttonLabel: string;
-    buttonClassName: string;
-    badgeClassName: string;
-  }
+	TradeType,
+	{
+		title: string;
+		description: string;
+		buttonLabel: string;
+		buttonClassName: string;
+		badgeClassName: string;
+	}
 > = {
-  buy: {
-    title: "구매하기",
-    description: "지정 수량과 가격을 확인한 뒤 매수 주문을 준비합니다.",
-    buttonLabel: "매수 주문 준비",
-    buttonClassName:
-      "bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600",
-    badgeClassName: "bg-blue-100 text-blue-700",
-  },
-  sell: {
-    title: "판매하기",
-    description: "",
-    buttonLabel: "판매 예약하기",
-    buttonClassName:
-      "bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:outline-emerald-600",
-    badgeClassName: "bg-emerald-100 text-emerald-700",
-  },
+	buy: {
+		title: "구매하기",
+		description: "지정 수량과 가격을 확인한 뒤 매수 주문을 준비합니다.",
+		buttonLabel: "매수 주문 준비",
+		buttonClassName:
+			"bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600",
+		badgeClassName: "bg-blue-100 text-blue-700",
+	},
+	sell: {
+		title: "판매하기",
+		description: "",
+		buttonLabel: "판매 예약하기",
+		buttonClassName:
+			"bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:outline-emerald-600",
+		badgeClassName: "bg-emerald-100 text-emerald-700",
+	},
 };
 
 function formatCurrency(value: number) {
-  return `${Math.round(value).toLocaleString("ko-KR")}원`;
+	return `${Math.round(value).toLocaleString("ko-KR")}원`;
 }
 
 function formatPercent(value: number) {
-  const prefix = value > 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
+	const prefix = value > 0 ? "+" : "";
+	return `${prefix}${value.toFixed(2)}%`;
 }
 
 function formatCompactNumber(value: number) {
-  return value.toLocaleString("ko-KR");
+	return value.toLocaleString("ko-KR");
 }
 
 export default function TradeAction() {
-  const navigate = useNavigate();
-  const { stockId, tradeType } = useParams();
-  const [searchParams] = useSearchParams();
-  const [orderMode, setOrderMode] = useState<OrderMode>("limit");
-  const [quantity, setQuantity] = useState("1");
-  const [limitPriceInput, setLimitPriceInput] = useState("");
+	const navigate = useNavigate();
+	const { stockId, tradeType } = useParams();
+	const [searchParams] = useSearchParams();
+	const [orderMode, setOrderMode] = useState<OrderMode>("limit");
+	const [quantity, setQuantity] = useState("1");
+	const [limitPriceInput, setLimitPriceInput] = useState("");
 
-  const resolvedTradeType: TradeType = tradeType === "sell" ? "sell" : "buy";
-  const content = TRADE_CONTENT[resolvedTradeType];
-  const fallbackName = searchParams.get("name");
-  const stockName = fallbackName ? decodeURIComponent(fallbackName) : stockId;
+	const resolvedTradeType: TradeType = tradeType === "sell" ? "sell" : "buy";
+	const content = TRADE_CONTENT[resolvedTradeType];
+	const fallbackName = searchParams.get("name");
+	const stockName = fallbackName ? decodeURIComponent(fallbackName) : stockId;
 
-  const reportQuery = useStockReportQuery({
-    symbol: stockId,
-    enabled: Boolean(stockId),
-  });
-  const holdingsQuery = useHoldingsQuery({ enabled: true });
+	const reportQuery = useStockReportQuery({
+		symbol: stockId,
+		enabled: Boolean(stockId),
+	});
+	const holdingsQuery = useHoldingsQuery({ enabled: true });
+	const orderBookQuery = useStockOrderBookQuery({
+		ticker: stockId,
+		enabled: Boolean(stockId),
+	});
 
-  const holding = useMemo(
-    () => holdingsQuery.holdings.find((item) => item.ticker === stockId),
-    [holdingsQuery.holdings, stockId],
-  );
+	const holding = useMemo(
+		() => holdingsQuery.holdings.find((item) => item.ticker === stockId),
+		[holdingsQuery.holdings, stockId],
+	);
 
-  const currentPrice = reportQuery.report?.summary.current_price ?? 0;
-  const parsedQuantity = Number(quantity);
-  const effectiveQuantity =
-    Number.isFinite(parsedQuantity) && parsedQuantity > 0
-      ? Math.floor(parsedQuantity)
-      : 0;
-  const limitPrice = Number(limitPriceInput.replaceAll(",", ""));
-  const effectivePrice =
-    orderMode === "market" || orderMode === "current"
-      ? currentPrice
-      : Number.isFinite(limitPrice) && limitPrice > 0
-        ? limitPrice
-        : 0;
-  const estimatedAmount = effectiveQuantity * effectivePrice;
-  const holdingQuantity = holding?.quantity ?? 0;
-  const availableBuyBudget = holding?.eval_amount ?? currentPrice * 100;
-  const expectedProfit = (currentPrice - effectivePrice) * effectiveQuantity;
-  const expectedReturnRate =
-    effectivePrice > 0
-      ? ((currentPrice - effectivePrice) / effectivePrice) * 100
-      : 0;
-  const orderBookLevels = useMemo<OrderBookLevel[]>(() => {
-    if (currentPrice <= 0) {
-      return [];
-    }
+	const orderBookReferencePrice = useMemo(() => {
+		const orderBook = orderBookQuery.orderBook;
+		if (!orderBook) {
+			return 0;
+		}
 
-    const tickSize =
-      currentPrice >= 100000 ? 500 : currentPrice >= 10000 ? 100 : 10;
-    const baseLevels = Array.from({ length: 6 }, (_, index) => {
-      const offset = 6 - index;
-      const sellPrice = currentPrice + tickSize * offset;
-      const buyPrice = Math.max(
-        currentPrice - tickSize * (index + 1),
-        tickSize,
-      );
+		const bestAsk = Math.min(...orderBook.asks.map((item) => item.price));
+		const bestBid = Math.max(...orderBook.bids.map((item) => item.price));
+		const fallbackAsk = Number.isFinite(bestAsk) ? bestAsk : 0;
+		const fallbackBid = Number.isFinite(bestBid) ? bestBid : 0;
 
-      return [
-        {
-          price: sellPrice,
-          side: "sell" as const,
-          quantity: 120 + offset * 35,
-          total: sellPrice * (120 + offset * 35),
-        },
-        {
-          price: buyPrice,
-          side: "buy" as const,
-          quantity: 140 + (index + 1) * 28,
-          total: buyPrice * (140 + (index + 1) * 28),
-        },
-      ];
-    }).flat();
+		if (resolvedTradeType === "buy") {
+			return fallbackAsk || fallbackBid;
+		}
 
-    return baseLevels.sort((a, b) => b.price - a.price);
-  }, [currentPrice]);
-  const isOrderBookLoading =
-    reportQuery.isLoading ||
-    reportQuery.isFetching ||
-    (Boolean(stockId) && !reportQuery.report && currentPrice <= 0);
-  const canProceed =
-    Boolean(stockId) &&
-    effectiveQuantity > 0 &&
-    effectivePrice > 0 &&
-    (resolvedTradeType === "buy" || holdingQuantity >= effectiveQuantity);
+		return fallbackBid || fallbackAsk;
+	}, [orderBookQuery.orderBook, resolvedTradeType]);
+	const currentPrice =
+		reportQuery.report?.summary.current_price || orderBookReferencePrice;
+	const parsedQuantity = Number(quantity);
+	const effectiveQuantity =
+		Number.isFinite(parsedQuantity) && parsedQuantity > 0
+			? Math.floor(parsedQuantity)
+			: 0;
+	const limitPrice = Number(limitPriceInput.replaceAll(",", ""));
+	const effectivePrice =
+		orderMode === "market" || orderMode === "current"
+			? currentPrice
+			: Number.isFinite(limitPrice) && limitPrice > 0
+				? limitPrice
+				: 0;
+	const estimatedAmount = effectiveQuantity * effectivePrice;
+	const holdingQuantity = holding?.quantity ?? 0;
+	const availableBuyBudget = holding?.eval_amount ?? currentPrice * 100;
+	const expectedProfit = (currentPrice - effectivePrice) * effectiveQuantity;
+	const expectedReturnRate =
+		effectivePrice > 0
+			? ((currentPrice - effectivePrice) / effectivePrice) * 100
+			: 0;
+	const orderBookLevels = useMemo<OrderBookLevel[]>(() => {
+		const orderBook = orderBookQuery.orderBook;
+		if (!orderBook) {
+			return [];
+		}
 
-  const applyQuantityRatio = (
-    ratio: (typeof QUANTITY_RATIO_OPTIONS)[number],
-  ) => {
-    if (resolvedTradeType === "sell") {
-      setQuantity(String(Math.floor((holdingQuantity * ratio) / 100)));
-      return;
-    }
+		return [
+			...orderBook.asks.map((item) => ({
+				price: item.price,
+				side: "sell" as const,
+				quantity: item.quantity,
+				total: item.price * item.quantity,
+			})),
+			...orderBook.bids.map((item) => ({
+				price: item.price,
+				side: "buy" as const,
+				quantity: item.quantity,
+				total: item.price * item.quantity,
+			})),
+		].sort((a, b) => b.price - a.price);
+	}, [orderBookQuery.orderBook]);
+	const isOrderBookLoading =
+		orderBookQuery.isLoading || orderBookQuery.isFetching;
+	const canProceed =
+		Boolean(stockId) &&
+		effectiveQuantity > 0 &&
+		effectivePrice > 0 &&
+		(resolvedTradeType === "buy" || holdingQuantity >= effectiveQuantity);
 
-    if (effectivePrice <= 0) {
-      return;
-    }
+	const applyQuantityRatio = (
+		ratio: (typeof QUANTITY_RATIO_OPTIONS)[number],
+	) => {
+		if (resolvedTradeType === "sell") {
+			setQuantity(String(Math.floor((holdingQuantity * ratio) / 100)));
+			return;
+		}
 
-    const nextQuantity = Math.floor(
-      (availableBuyBudget * (ratio / 100)) / effectivePrice,
-    );
-    setQuantity(String(Math.max(nextQuantity, 0)));
-  };
+		if (effectivePrice <= 0) {
+			return;
+		}
 
-  const applyMaxQuantity = () => {
-    if (resolvedTradeType === "sell") {
-      setQuantity(String(holdingQuantity));
-      return;
-    }
+		const nextQuantity = Math.floor(
+			(availableBuyBudget * (ratio / 100)) / effectivePrice,
+		);
+		setQuantity(String(Math.max(nextQuantity, 0)));
+	};
 
-    if (effectivePrice <= 0) {
-      return;
-    }
+	const applyMaxQuantity = () => {
+		if (resolvedTradeType === "sell") {
+			setQuantity(String(holdingQuantity));
+			return;
+		}
 
-    setQuantity(String(Math.floor(availableBuyBudget / effectivePrice)));
-  };
+		if (effectivePrice <= 0) {
+			return;
+		}
 
-  const adjustLimitPrice = (delta: number) => {
-    if (orderMode !== "limit") {
-      return;
-    }
+		setQuantity(String(Math.floor(availableBuyBudget / effectivePrice)));
+	};
 
-    const basePrice = limitPrice > 0 ? limitPrice : currentPrice;
-    const nextPrice = Math.max(basePrice + delta, 0);
-    setLimitPriceInput(String(nextPrice));
-  };
+	const adjustLimitPrice = (delta: number) => {
+		if (orderMode !== "limit") {
+			return;
+		}
 
-  const adjustQuantity = (delta: number) => {
-    const nextQuantity = Math.max(effectiveQuantity + delta, 0);
-    setQuantity(String(nextQuantity));
-  };
+		const basePrice = limitPrice > 0 ? limitPrice : currentPrice;
+		const nextPrice = Math.max(basePrice + delta, 0);
+		setLimitPriceInput(String(nextPrice));
+	};
 
-  return (
-    <div className="space-y-6 py-8">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-        <div>
-          <div>
-            <div className="flex items-center gap-3">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${content.badgeClassName}`}>
-                {content.title}
-              </span>
-              <p className="text-sm text-slate-500">
-                {stockName ?? "선택한 종목"} ({stockId ?? "-"})
-              </p>
-            </div>
-            <h1 className="mt-3 text-2xl font-semibold text-slate-900">
-              {stockName ?? "종목"} {content.title}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {content.description}
-            </p>
-          </div>
-        </div>
-      </section>
+	const adjustQuantity = (delta: number) => {
+		const nextQuantity = Math.max(effectiveQuantity + delta, 0);
+		setQuantity(String(nextQuantity));
+	};
 
-      <section className="space-y-6">
-        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-          <div className="grid gap-4 grid-cols-[minmax(90px,0.24fr)_minmax(0,1.76fr)]">
-            <div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-1 text-[9px] font-semibold">
-                  <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-blue-700">
-                    매도
-                  </span>
-                  <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-rose-700">
-                    매수
-                  </span>
-                </div>
-              </div>
+	return (
+		<div className="space-y-6 py-8">
+			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+				<div>
+					<div>
+						<div className="flex items-center gap-3">
+							<span
+								className={`rounded-full px-3 py-1 text-xs font-semibold ${content.badgeClassName}`}
+							>
+								{content.title}
+							</span>
+							<p className="text-sm text-slate-500">
+								{stockName ?? "선택한 종목"} ({stockId ?? "-"})
+							</p>
+						</div>
+						<h1 className="mt-3 text-2xl font-semibold text-slate-900">
+							{stockName ?? "종목"} {content.title}
+						</h1>
+						<p className="mt-2 text-sm leading-6 text-slate-600">
+							{content.description}
+						</p>
+					</div>
+				</div>
+			</section>
 
-              <div className="mt-4 w-fit overflow-hidden rounded-lg border border-slate-200">
-                <div className="grid grid-cols-[60px_16px] border-b border-slate-200 bg-slate-50 px-1.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-400">
-                  <span>가격</span>
-                  <span className="text-right">수량</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {orderBookLevels.length > 0 ? (
-                    orderBookLevels.map((level) => {
-                      const isSell = level.side === "sell";
+			<section className="space-y-6">
+				<article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+					<div className="grid gap-4 grid-cols-[minmax(90px,0.24fr)_minmax(0,1.76fr)]">
+						<div>
+							<div className="space-y-3">
+								<div className="space-y-2">
+									<div className="flex items-center gap-1 text-[9px] font-semibold">
+										<span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-blue-700">
+											매도
+										</span>
+										<span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-rose-700">
+											매수
+										</span>
+									</div>
+									<p className="text-[10px] font-semibold text-slate-500">
+										체결강도{" "}
+										<span className="text-slate-900">
+											{orderBookQuery.orderBook
+												? `${orderBookQuery.orderBook.trade_strength.toFixed(1)}%`
+												: "-"}
+										</span>
+									</p>
+								</div>
+							</div>
 
-                      return (
-                        <button
-                          key={`${level.side}-${level.price}`}
-                          type="button"
-                          onClick={() =>
-                            setLimitPriceInput(String(level.price))
-                          }
-                          className={`grid w-full grid-cols-[60px_16px] items-center px-1.5 py-1.5 text-left transition ${
-                            isSell
-                              ? "bg-blue-50/70 hover:bg-blue-100/80"
-                              : "bg-rose-50/70 hover:bg-rose-100/80"
-                          }`}>
-                          <div>
-                            <div
-                              className={`text-[10px] font-semibold leading-4 ${
-                                isSell ? "text-blue-900" : "text-rose-900"
-                              }`}>
-                              {formatCompactNumber(level.price)}
-                            </div>
-                          </div>
-                          <span className="text-right text-[9px] font-semibold text-slate-700">
-                            {formatCompactNumber(level.quantity)}
-                          </span>
-                        </button>
-                      );
-                    })
-                  ) : isOrderBookLoading ? (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">
-                      호가 데이터를 불러오는 중입니다.
-                    </div>
-                  ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">
-                      표시할 호가 데이터가 없습니다.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+							<div className="mt-4 w-fit overflow-hidden rounded-lg border border-slate-200">
+								<div className="grid grid-cols-[60px_16px] border-b border-slate-200 bg-slate-50 px-1.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+									<span>가격</span>
+									<span className="text-right">수량</span>
+								</div>
+								<div className="divide-y divide-slate-100">
+									{orderBookLevels.length > 0 ? (
+										orderBookLevels.map((level) => {
+											const isSell = level.side === "sell";
 
-            <div>
-              <div className="space-y-3">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  주문 설정
-                </h2>
-                <div className="inline-flex max-w-full items-center rounded-full bg-slate-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setOrderMode("limit")}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      orderMode === "limit"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}>
-                    지정가
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOrderMode("current")}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      orderMode === "current"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}>
-                    현재가
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOrderMode("market")}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      orderMode === "market"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}>
-                    시장가
-                  </button>
-                </div>
-              </div>
+											return (
+												<button
+													key={`${level.side}-${level.price}`}
+													type="button"
+													onClick={() =>
+														setLimitPriceInput(String(level.price))
+													}
+													className={`grid w-full grid-cols-[60px_16px] items-center px-1.5 py-1.5 text-left transition ${
+														isSell
+															? "bg-blue-50/70 hover:bg-blue-100/80"
+															: "bg-rose-50/70 hover:bg-rose-100/80"
+													}`}
+												>
+													<div>
+														<div
+															className={`text-[10px] font-semibold leading-4 ${
+																isSell ? "text-blue-900" : "text-rose-900"
+															}`}
+														>
+															{formatCompactNumber(level.price)}
+														</div>
+													</div>
+													<span className="text-right text-[9px] font-semibold text-slate-700">
+														{formatCompactNumber(level.quantity)}
+													</span>
+												</button>
+											);
+										})
+									) : isOrderBookLoading ? (
+										<div className="px-4 py-8 text-center text-sm text-slate-400">
+											호가 데이터를 불러오는 중입니다.
+										</div>
+									) : (
+										<div className="px-2 py-8 text-center text-xs leading-5 text-slate-400">
+											{orderBookQuery.errorMessage ??
+												"표시할 호가 데이터가 없습니다."}
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
 
-              <div className="mt-6 grid gap-5">
-                <label className="block">
-                  <span className="text-sm font-medium text-slate-700">
-                    {orderMode === "limit"
-                      ? "주문 단가"
-                      : orderMode === "current"
-                        ? "현재가"
-                        : "시장가 기준 가격"}
-                  </span>
-                  <div className="mt-2 flex w-full items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={
-                        orderMode === "limit"
-                          ? limitPriceInput
-                          : currentPrice || ""
-                      }
-                      onChange={(event) =>
-                        setLimitPriceInput(event.target.value)
-                      }
-                      disabled={orderMode !== "limit"}
-                      className="min-w-0 w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400"
-                      placeholder="가격 입력"
-                    />
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => adjustLimitPrice(-100)}
-                        disabled={orderMode !== "limit"}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300">
-                        -
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => adjustLimitPrice(100)}
-                        disabled={orderMode !== "limit"}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300">
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </label>
+						<div>
+							<div className="space-y-3">
+								<h2 className="text-lg font-semibold text-slate-900">
+									주문 설정
+								</h2>
+								<div className="inline-flex max-w-full items-center rounded-full bg-slate-100 p-1">
+									<button
+										type="button"
+										onClick={() => setOrderMode("limit")}
+										className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+											orderMode === "limit"
+												? "bg-white text-slate-900 shadow-sm"
+												: "text-slate-500 hover:text-slate-700"
+										}`}
+									>
+										지정가
+									</button>
+									<button
+										type="button"
+										onClick={() => setOrderMode("current")}
+										className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+											orderMode === "current"
+												? "bg-white text-slate-900 shadow-sm"
+												: "text-slate-500 hover:text-slate-700"
+										}`}
+									>
+										현재가
+									</button>
+									<button
+										type="button"
+										onClick={() => setOrderMode("market")}
+										className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+											orderMode === "market"
+												? "bg-white text-slate-900 shadow-sm"
+												: "text-slate-500 hover:text-slate-700"
+										}`}
+									>
+										시장가
+									</button>
+								</div>
+							</div>
 
-                <label className="block">
-                  <span className="text-sm font-medium text-slate-700">
-                    주문 수량
-                  </span>
-                  <div className="mt-2 flex w-full items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={quantity}
-                      onChange={(event) => setQuantity(event.target.value)}
-                      className="min-w-0 w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none"
-                      placeholder="수량 입력"
-                    />
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => adjustQuantity(-1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                        -
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => adjustQuantity(1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                        +
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {QUANTITY_RATIO_OPTIONS.map((ratio) => (
-                      <button
-                        key={ratio}
-                        type="button"
-                        onClick={() => applyQuantityRatio(ratio)}
-                        className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                        {ratio}%
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={applyMaxQuantity}
-                      className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
-                      최대
-                    </button>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-        </article>
+							<div className="mt-6 grid gap-5">
+								<label className="block">
+									<span className="text-sm font-medium text-slate-700">
+										{orderMode === "limit"
+											? "주문 단가"
+											: orderMode === "current"
+												? "현재가"
+												: "시장가 기준 가격"}
+									</span>
+									<div className="mt-2 flex w-full items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
+										<input
+											type="number"
+											min="0"
+											step="1"
+											value={
+												orderMode === "limit"
+													? limitPriceInput
+													: currentPrice || ""
+											}
+											onChange={(event) =>
+												setLimitPriceInput(event.target.value)
+											}
+											disabled={orderMode !== "limit"}
+											className="min-w-0 w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400"
+											placeholder="가격 입력"
+										/>
+										<div className="flex items-center gap-1">
+											<button
+												type="button"
+												onClick={() => adjustLimitPrice(-100)}
+												disabled={orderMode !== "limit"}
+												className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+											>
+												-
+											</button>
+											<button
+												type="button"
+												onClick={() => adjustLimitPrice(100)}
+												disabled={orderMode !== "limit"}
+												className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+											>
+												+
+											</button>
+										</div>
+									</div>
+								</label>
 
-        <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-          <h2 className="text-lg font-semibold text-slate-900">주문 요약</h2>
-          <div className="mt-5 space-y-4">
-            {resolvedTradeType === "sell" ? (
-              <>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">구매 가능 금액</span>
-                  <span className="font-semibold text-slate-900">
-                    {formatCurrency(availableBuyBudget)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">주문 수량</span>
-                  <span className="font-semibold text-slate-900">
-                    {effectiveQuantity.toLocaleString("ko-KR")}주
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">주문 단가</span>
-                  <span className="font-semibold text-slate-900">
-                    {effectivePrice > 0 ? formatCurrency(effectivePrice) : "-"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">총 주문 금액</span>
-                  <span className="font-semibold text-slate-900">
-                    {estimatedAmount > 0
-                      ? formatCurrency(estimatedAmount)
-                      : "-"}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">예상 수익률</span>
-                  <span className="font-semibold text-slate-900">
-                    {estimatedAmount > 0
-                      ? formatPercent(expectedReturnRate)
-                      : "-"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">예상 손익</span>
-                  <span className="font-semibold text-slate-900">
-                    {estimatedAmount > 0 ? formatCurrency(expectedProfit) : "-"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">총 주문 금액</span>
-                  <span className="font-semibold text-slate-900">
-                    {estimatedAmount > 0
-                      ? formatCurrency(estimatedAmount)
-                      : "-"}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
+								<label className="block">
+									<span className="text-sm font-medium text-slate-700">
+										주문 수량
+									</span>
+									<div className="mt-2 flex w-full items-center rounded-2xl border border-slate-200 bg-white px-2 py-2 transition focus-within:border-slate-400">
+										<input
+											type="number"
+											min="1"
+											step="1"
+											value={quantity}
+											onChange={(event) => setQuantity(event.target.value)}
+											className="min-w-0 w-0 flex-1 border-none px-2 py-1 text-sm text-slate-900 outline-none"
+											placeholder="수량 입력"
+										/>
+										<div className="flex items-center gap-1">
+											<button
+												type="button"
+												onClick={() => adjustQuantity(-1)}
+												className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+											>
+												-
+											</button>
+											<button
+												type="button"
+												onClick={() => adjustQuantity(1)}
+												className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+											>
+												+
+											</button>
+										</div>
+									</div>
+									<div className="mt-3 flex flex-wrap gap-2">
+										{QUANTITY_RATIO_OPTIONS.map((ratio) => (
+											<button
+												key={ratio}
+												type="button"
+												onClick={() => applyQuantityRatio(ratio)}
+												className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+											>
+												{ratio}%
+											</button>
+										))}
+										<button
+											type="button"
+											onClick={applyMaxQuantity}
+											className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+										>
+											최대
+										</button>
+									</div>
+								</label>
+							</div>
+						</div>
+					</div>
+				</article>
 
-          {resolvedTradeType === "sell" &&
-            holdingQuantity < effectiveQuantity && (
-              <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                보유 수량보다 많은 수량을 입력했습니다. 매도 가능 수량은{" "}
-                {holdingQuantity.toLocaleString("ko-KR")}주입니다.
-              </p>
-            )}
+				<aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+					<h2 className="text-lg font-semibold text-slate-900">주문 요약</h2>
+					<div className="mt-5 space-y-4">
+						{resolvedTradeType === "sell" ? (
+							<>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">구매 가능 금액</span>
+									<span className="font-semibold text-slate-900">
+										{formatCurrency(availableBuyBudget)}
+									</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">주문 수량</span>
+									<span className="font-semibold text-slate-900">
+										{effectiveQuantity.toLocaleString("ko-KR")}주
+									</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">주문 단가</span>
+									<span className="font-semibold text-slate-900">
+										{effectivePrice > 0 ? formatCurrency(effectivePrice) : "-"}
+									</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">총 주문 금액</span>
+									<span className="font-semibold text-slate-900">
+										{estimatedAmount > 0
+											? formatCurrency(estimatedAmount)
+											: "-"}
+									</span>
+								</div>
+							</>
+						) : (
+							<>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">예상 수익률</span>
+									<span className="font-semibold text-slate-900">
+										{estimatedAmount > 0
+											? formatPercent(expectedReturnRate)
+											: "-"}
+									</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">예상 손익</span>
+									<span className="font-semibold text-slate-900">
+										{estimatedAmount > 0 ? formatCurrency(expectedProfit) : "-"}
+									</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-slate-500">총 주문 금액</span>
+									<span className="font-semibold text-slate-900">
+										{estimatedAmount > 0
+											? formatCurrency(estimatedAmount)
+											: "-"}
+									</span>
+								</div>
+							</>
+						)}
+					</div>
 
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                `/stocks/${stockId ?? ""}/pending?name=${encodeURIComponent(
-                  stockName ?? "",
-                )}`,
-              )
-            }
-            className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900">
-            체결 대기 목록
-          </button>
+					{resolvedTradeType === "sell" &&
+						holdingQuantity < effectiveQuantity && (
+							<p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+								보유 수량보다 많은 수량을 입력했습니다. 매도 가능 수량은{" "}
+								{holdingQuantity.toLocaleString("ko-KR")}주입니다.
+							</p>
+						)}
 
-          <button
-            type="button"
-            disabled={!canProceed}
-            className={`mt-6 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 ${content.buttonClassName}`}>
-            {content.buttonLabel}
-          </button>
-        </aside>
-      </section>
-    </div>
-  );
+					<button
+						type="button"
+						onClick={() =>
+							navigate(
+								`/stocks/${stockId ?? ""}/pending?name=${encodeURIComponent(
+									stockName ?? "",
+								)}`,
+							)
+						}
+						className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+					>
+						체결 대기 목록
+					</button>
+
+					<button
+						type="button"
+						disabled={!canProceed}
+						className={`mt-6 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 ${content.buttonClassName}`}
+					>
+						{content.buttonLabel}
+					</button>
+				</aside>
+			</section>
+		</div>
+	);
 }

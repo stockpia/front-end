@@ -4,6 +4,7 @@ import {
 	fetchStocksList,
 	type HoldingsSort,
 } from "@/lib/api/stocks/list";
+import { fetchStockOrderBook as fetchStockOrderBookApi } from "@/lib/api/stocks/orderbook";
 import type { StocksMarket, StocksOrder, StocksSort } from "@/types/stocks";
 
 function toErrorMessage(error: unknown) {
@@ -78,5 +79,28 @@ export function useHoldingsQuery({
 		...query,
 		errorMessage: toErrorMessage(query.error),
 		holdings: query.data?.stocks ?? [],
+	};
+}
+
+type UseStockOrderBookQueryParams = {
+	ticker?: string;
+	enabled?: boolean;
+};
+
+export function useStockOrderBookQuery({
+	ticker,
+	enabled = true,
+}: UseStockOrderBookQueryParams) {
+	const query = useQuery({
+		queryKey: ["stock-orderbook", ticker ?? null],
+		enabled: Boolean(ticker) && enabled,
+		queryFn: ({ signal }) => fetchStockOrderBookApi(ticker as string, signal),
+		refetchInterval: 5000,
+	});
+
+	return {
+		...query,
+		errorMessage: toErrorMessage(query.error),
+		orderBook: query.data ?? null,
 	};
 }

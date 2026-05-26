@@ -2,6 +2,8 @@ import type { AccountSession } from "@/types/accounts";
 
 const ACCOUNT_SESSION_KEY = "stockpia.account.session";
 const ACCOUNT_SESSION_EVENT = "stockpia:account-session-change";
+let cachedAccountSessionRaw: string | null = null;
+let cachedAccountSession: AccountSession | null = null;
 
 function isBrowser() {
 	return typeof window !== "undefined";
@@ -14,13 +16,23 @@ export function getAccountSession(): AccountSession | null {
 
 	const raw = window.localStorage.getItem(ACCOUNT_SESSION_KEY);
 	if (!raw) {
+		cachedAccountSessionRaw = null;
+		cachedAccountSession = null;
 		return null;
 	}
 
+	if (raw === cachedAccountSessionRaw) {
+		return cachedAccountSession;
+	}
+
 	try {
-		return JSON.parse(raw) as AccountSession;
+		cachedAccountSessionRaw = raw;
+		cachedAccountSession = JSON.parse(raw) as AccountSession;
+		return cachedAccountSession;
 	} catch {
 		window.localStorage.removeItem(ACCOUNT_SESSION_KEY);
+		cachedAccountSessionRaw = null;
+		cachedAccountSession = null;
 		return null;
 	}
 }
@@ -38,7 +50,10 @@ export function setAccountSession(session: AccountSession) {
 		return;
 	}
 
-	window.localStorage.setItem(ACCOUNT_SESSION_KEY, JSON.stringify(session));
+	const raw = JSON.stringify(session);
+	cachedAccountSessionRaw = raw;
+	cachedAccountSession = session;
+	window.localStorage.setItem(ACCOUNT_SESSION_KEY, raw);
 	notifyAccountSessionChange();
 }
 
@@ -47,6 +62,8 @@ export function clearAccountSession() {
 		return;
 	}
 
+	cachedAccountSessionRaw = null;
+	cachedAccountSession = null;
 	window.localStorage.removeItem(ACCOUNT_SESSION_KEY);
 	notifyAccountSessionChange();
 }

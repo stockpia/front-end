@@ -1,80 +1,39 @@
-import { useMutation } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
 import { CircleHelp, ExternalLink, KeyRound } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
-import { signupAccount } from "@/lib/api/accounts";
-import { setAccountSession } from "@/lib/auth/session";
 import type { AccountEnvironment } from "@/types/accounts";
 
 type AccountInfoStepProps = {
-	name: string;
-	birthDate: string;
-	phoneNumber: string;
+	accountNumber: string;
+	appKey: string;
+	appSecretKey: string;
+	environment: AccountEnvironment;
+	onChangeAccountNumber: (value: string) => void;
+	onChangeAppKey: (value: string) => void;
+	onChangeAppSecretKey: (value: string) => void;
+	onChangeEnvironment: (value: AccountEnvironment) => void;
 	onPrev: () => void;
+	onNext: () => void;
 };
 
-function toErrorMessage(error: unknown) {
-	if (
-		isAxiosError<{
-			error?: string;
-			detail?: string;
-		}>(error)
-	) {
-		const { error: message, detail } = error.response?.data ?? {};
-		return [message, detail].filter(Boolean).join(" ");
-	}
-
-	return error instanceof Error
-		? error.message
-		: "계좌 연동 중 오류가 발생했습니다.";
-}
-
 export default function AccountInfoStep({
-	name,
-	birthDate,
-	phoneNumber,
+	accountNumber,
+	appKey,
+	appSecretKey,
+	environment,
+	onChangeAccountNumber,
+	onChangeAppKey,
+	onChangeAppSecretKey,
+	onChangeEnvironment,
 	onPrev,
+	onNext,
 }: AccountInfoStepProps) {
-	const navigate = useNavigate();
-	const [accountNumber, setAccountNumber] = useState("");
-	const [appKey, setAppKey] = useState("");
-	const [appSecretKey, setAppSecretKey] = useState("");
-	const [environment, setEnvironment] = useState<AccountEnvironment>("vps");
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 	const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
 
-	const signupMutation = useMutation({
-		mutationFn: signupAccount,
-		onSuccess: (response, variables) => {
-			setErrorMessage(null);
-			setAccountSession({
-				userId: variables.user_id?.trim() || "default_user",
-				name: response.name,
-				phone: variables.phone,
-				accountNumber: response.account_number,
-			});
-			setIsSuccessModalOpen(true);
-		},
-		onError: (error) => {
-			setErrorMessage(toErrorMessage(error));
-		},
-	});
-
 	const isSubmitDisabled =
-		!name.trim() ||
-		!birthDate.trim() ||
-		!phoneNumber.trim() ||
 		!accountNumber.trim() ||
 		!appKey.trim() ||
-		!appSecretKey.trim() ||
-		signupMutation.isPending;
-
-	const handleMoveToChatbot = () => {
-		window.close();
-	};
+		!appSecretKey.trim();
 
 	const handleOpenPortal = () => {
 		window.open(
@@ -82,18 +41,6 @@ export default function AccountInfoStep({
 			"_blank",
 			"noopener,noreferrer",
 		);
-	};
-
-	const handleSubmit = () => {
-		signupMutation.mutate({
-			name: name.trim(),
-			birthdate: birthDate.trim(),
-			phone: phoneNumber.trim(),
-			account_number: accountNumber.trim(),
-			app_key: appKey.trim(),
-			app_secret_key: appSecretKey.trim(),
-			env: environment,
-		});
 	};
 
 	return (
@@ -107,7 +54,7 @@ export default function AccountInfoStep({
 						type="text"
 						placeholder="계좌번호를 입력하세요"
 						value={accountNumber}
-						onChange={(event) => setAccountNumber(event.target.value)}
+						onChange={(event) => onChangeAccountNumber(event.target.value)}
 					/>
 				</label>
 
@@ -149,7 +96,7 @@ export default function AccountInfoStep({
 						type="text"
 						placeholder="APP key를 입력하세요"
 						value={appKey}
-						onChange={(event) => setAppKey(event.target.value)}
+						onChange={(event) => onChangeAppKey(event.target.value)}
 					/>
 				</label>
 				<label className="block">
@@ -159,7 +106,7 @@ export default function AccountInfoStep({
 						type="password"
 						placeholder="APP secret key를 입력하세요"
 						value={appSecretKey}
-						onChange={(event) => setAppSecretKey(event.target.value)}
+						onChange={(event) => onChangeAppSecretKey(event.target.value)}
 					/>
 				</label>
 
@@ -169,7 +116,7 @@ export default function AccountInfoStep({
 						className="w-full rounded-md border px-3 py-2"
 						value={environment}
 						onChange={(event) =>
-							setEnvironment(event.target.value as AccountEnvironment)
+							onChangeEnvironment(event.target.value as AccountEnvironment)
 						}
 					>
 						<option value="vps">모의투자 (vps)</option>
@@ -177,12 +124,6 @@ export default function AccountInfoStep({
 					</select>
 				</label>
 			</div>
-
-			{errorMessage && (
-				<p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-					{errorMessage}
-				</p>
-			)}
 
 			<div className="mt-6 flex justify-between">
 				<button
@@ -194,26 +135,13 @@ export default function AccountInfoStep({
 				</button>
 				<button
 					type="button"
-					onClick={handleSubmit}
+					onClick={onNext}
 					disabled={isSubmitDisabled}
 					className="rounded-lg bg-primary px-5 py-2 font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					{signupMutation.isPending ? "연동 중..." : "연동 완료"}
+					다음
 				</button>
 			</div>
-
-			<CommonModal
-				open={isSuccessModalOpen}
-				onClose={() => setIsSuccessModalOpen(false)}
-				title="계좌 연결이 완료됐어요 !"
-				description={
-					"이제 주토피아에서\n해당 계좌를 기반으로\n다양한 리포트와 서비스를\n사용할 수 있어요 😁"
-				}
-				actionLabel="메인 화면으로"
-				onAction={() => navigate("/stocks")}
-				secondaryActionLabel="챗봇으로"
-				onSecondaryAction={handleMoveToChatbot}
-			/>
 
 			<CommonModal
 				open={isGuideModalOpen}

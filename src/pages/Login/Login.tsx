@@ -3,18 +3,26 @@ import { useSearchParams } from "react-router-dom";
 import LoginStepHeader from "./components/LoginStepHeader";
 import AccountInfoStep from "./views/AccountInfoStep";
 import BasicInfoStep from "./views/BasicInfoStep";
+import NotificationInfoStep from "./views/NotificationInfoStep";
 import SigninStep from "./views/SigninStep";
+import type { AccountEnvironment } from "@/types/accounts";
 
-const TOTAL_STEPS = 2;
+const TOTAL_STEPS = 3;
 
 export default function Login() {
 	const [searchParams] = useSearchParams();
-	const initialMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
+	const initialMode =
+		searchParams.get("mode") === "signup" ? "signup" : "signin";
 	const [mode, setMode] = useState<"signup" | "signin">(initialMode);
 	const [currentStep, setCurrentStep] = useState(1);
 	const [name, setName] = useState("");
 	const [birthDate, setBirthDate] = useState("");
 	const [phoneNumber, setPhoneNumber] = useState("");
+	const [password, setPassword] = useState("");
+	const [accountNumber, setAccountNumber] = useState("");
+	const [appKey, setAppKey] = useState("");
+	const [appSecretKey, setAppSecretKey] = useState("");
+	const [environment, setEnvironment] = useState<AccountEnvironment>("vps");
 
 	const goNext = () => {
 		setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
@@ -35,19 +43,40 @@ export default function Login() {
 					name={name}
 					birthDate={birthDate}
 					phoneNumber={phoneNumber}
+					password={password}
 					onChangeName={setName}
 					onChangeBirthDate={setBirthDate}
 					onChangePhoneNumber={setPhoneNumber}
+					onChangePassword={setPassword}
+					onNext={goNext}
+				/>
+			);
+		}
+
+		if (currentStep === 2) {
+			return (
+				<AccountInfoStep
+					accountNumber={accountNumber}
+					appKey={appKey}
+					appSecretKey={appSecretKey}
+					environment={environment}
+					onChangeAccountNumber={setAccountNumber}
+					onChangeAppKey={setAppKey}
+					onChangeAppSecretKey={setAppSecretKey}
+					onChangeEnvironment={setEnvironment}
+					onPrev={goPrev}
 					onNext={goNext}
 				/>
 			);
 		}
 
 		return (
-			<AccountInfoStep
+			<NotificationInfoStep
 				name={name}
 				birthDate={birthDate}
 				phoneNumber={phoneNumber}
+				password={password}
+				accountNumber={accountNumber}
 				onPrev={goPrev}
 			/>
 		);
