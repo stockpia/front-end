@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { useLocation } from "react-router-dom";
+import AccountMenuButton from "@/components/AccountMenuButton";
 import BackButton from "@/components/BackButton";
 import HomeButton from "@/components/HomeButton";
 
@@ -20,8 +21,9 @@ export function RootLayout({ children }: PropsWithChildren) {
         "
 			>
 				{showHomeButton && (
-					<div className="sticky top-0 z-30 bg-white pt-4 pb-2">
+					<div className="sticky top-0 z-30 flex items-center justify-between bg-white pt-4 pb-2">
 						<HomeButton />
+						<AccountMenuButton />
 					</div>
 				)}
 				{showBackButton && (

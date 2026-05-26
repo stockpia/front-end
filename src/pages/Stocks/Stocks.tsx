@@ -12,8 +12,6 @@ import {
 } from "@/hooks/queries/useStocksListQueries";
 import { useAccountSession } from "@/hooks/useAccountSession";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
-import { clearAccountSession } from "@/lib/auth/session";
-import { queryClient } from "@/lib/query/queryClient";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
@@ -80,12 +78,6 @@ export default function Stocks() {
 		order: "desc",
 		enabled: activeTab === "holding" && isSignedIn,
 	});
-	const handleSignout = async () => {
-		clearAccountSession();
-		await queryClient.invalidateQueries();
-		navigate("/stocks");
-	};
-
 	const displayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
 			return holdingsQuery.holdings.map((stock) => ({
@@ -216,7 +208,7 @@ export default function Stocks() {
 		<div className="space-y-8 py-8">
 			<section className="rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
 				<div className="flex items-center justify-between gap-4">
-					<div>
+					<div className="min-w-0">
 						<p className="text-sm font-semibold text-slate-900">
 							{isSignedIn
 								? `${accountSession?.name}님 계좌가 연동되어 있습니다.`
@@ -228,19 +220,15 @@ export default function Stocks() {
 								: "한국투자증권 계좌 연동 후 맞춤 데이터를 확인하세요."}
 						</p>
 					</div>
-					<button
-						type="button"
-						onClick={() => {
-							if (isSignedIn) {
-								void handleSignout();
-								return;
-							}
-							navigate("/login");
-						}}
-						className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
-					>
-						{isSignedIn ? "로그아웃" : "로그인"}
-					</button>
+					{!isSignedIn && (
+						<button
+							type="button"
+							onClick={() => navigate("/login")}
+							className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+						>
+							로그인
+						</button>
+					)}
 				</div>
 			</section>
 
