@@ -11,6 +11,7 @@ import {
 	useStocksListQuery,
 } from "@/hooks/queries/useStocksListQueries";
 import { useAccountSession } from "@/hooks/useAccountSession";
+import { useStockSearchSocket } from "@/hooks/useStockSearchSocket";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
@@ -72,13 +73,14 @@ export default function Stocks() {
 		order: "desc",
 		enabled: activeTab === "all",
 	});
+	const stockSearchSocket = useStockSearchSocket(searchTerm);
 	const holdingsQuery = useHoldingsQuery({
 		userId,
 		sort: holdingsSort,
 		order: "desc",
 		enabled: activeTab === "holding" && isSignedIn,
 	});
-	const displayedStocks = useMemo<StockItem[]>(() => {
+	const baseDisplayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
 			return holdingsQuery.holdings.map((stock) => ({
 				ticker: stock.ticker,
@@ -100,8 +102,35 @@ export default function Stocks() {
 		[searchTerm],
 	);
 
-	const filteredStocks = useMemo(() => {
+	const searchedStocks = useMemo<StockItem[]>(() => {
 		if (!normalizedSearchTerm) {
+			return [];
+		}
+
+		return stockSearchSocket.results.map((result) => {
+			const matchedStock = baseDisplayedStocks.find(
+				(stock) => stock.ticker === result.symbol,
+			);
+
+			return {
+				ticker: result.symbol,
+				name: result.name,
+				current_price: matchedStock?.current_price ?? 0,
+				change_rate: matchedStock?.change_rate ?? 0,
+				volume: matchedStock?.volume ?? 0,
+				quantity: matchedStock?.quantity,
+				eval_amount: matchedStock?.eval_amount,
+				profit_rate: matchedStock?.profit_rate,
+			};
+		});
+	}, [baseDisplayedStocks, normalizedSearchTerm, stockSearchSocket.results]);
+
+	const displayedStocks = normalizedSearchTerm
+		? searchedStocks
+		: baseDisplayedStocks;
+
+	const filteredStocks = useMemo(() => {
+		if (!normalizedSearchTerm || searchedStocks.length > 0) {
 			return displayedStocks;
 		}
 
@@ -110,7 +139,7 @@ export default function Stocks() {
 			const ticker = stock.ticker.toLowerCase();
 			return name === normalizedSearchTerm || ticker === normalizedSearchTerm;
 		});
-	}, [displayedStocks, normalizedSearchTerm]);
+	}, [displayedStocks, normalizedSearchTerm, searchedStocks.length]);
 
 	const sortedStocks = useMemo(() => {
 		if (activeTab !== "holding") {
@@ -138,12 +167,14 @@ export default function Stocks() {
 		}
 	}, [activeTab, filteredStocks, sortBy]);
 
-	const isLoading =
-		activeTab === "holding"
+	const isLoading = normalizedSearchTerm
+		? false
+		: activeTab === "holding"
 			? holdingsQuery.isLoading
 			: stocksListQuery.isLoading;
-	const error =
-		activeTab === "holding"
+	const error = normalizedSearchTerm
+		? stockSearchSocket.errorMessage
+		: activeTab === "holding"
 			? isSignedIn
 				? holdingsQuery.errorMessage
 				: null
