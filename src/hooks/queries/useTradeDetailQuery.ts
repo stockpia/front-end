@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchTradeDetail } from "@/lib/api/stocks/detail";
-import type { TradePeriod } from "@/mocks/tradeDetail";
+import type { TradePeriod } from "@/types/tradeDetail";
 
 type UseTradeDetailQueryParams = {
 	symbol?: string | null;
@@ -21,7 +21,12 @@ export function tradeDetailQueryKey(
 	userId: string | undefined,
 	period: TradePeriod,
 ) {
-	return ["trade-detail", symbol ?? null, userId ?? "default_user", period] as const;
+	return [
+		"trade-detail",
+		symbol ?? null,
+		userId ?? "default_user",
+		period,
+	] as const;
 }
 
 export function useTradeDetailQuery({
