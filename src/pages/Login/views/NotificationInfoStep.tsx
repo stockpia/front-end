@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
 import { signupAccount } from "@/lib/api/accounts";
 import { setAccountSession } from "@/lib/auth/session";
-import type { AccountEnvironment } from "@/types/accounts";
 
 type BriefingSetting = "marketBriefing" | "weekly";
 
@@ -31,10 +30,8 @@ type NotificationInfoStepProps = {
 	name: string;
 	birthDate: string;
 	phoneNumber: string;
+	password: string;
 	accountNumber: string;
-	appKey: string;
-	appSecretKey: string;
-	environment: AccountEnvironment;
 	onPrev: () => void;
 };
 
@@ -58,10 +55,8 @@ export default function NotificationInfoStep({
 	name,
 	birthDate,
 	phoneNumber,
+	password,
 	accountNumber,
-	appKey,
-	appSecretKey,
-	environment,
 	onPrev,
 }: NotificationInfoStepProps) {
 	const navigate = useNavigate();
@@ -81,10 +76,10 @@ export default function NotificationInfoStep({
 		onSuccess: (response, variables) => {
 			setErrorMessage(null);
 			setAccountSession({
-				userId: variables.user_id?.trim() || "default_user",
-				name: response.name,
+				userId: response.user_id,
+				name: variables.name,
 				phone: variables.phone,
-				accountNumber: response.account_number,
+				accountNumber: accountNumber.trim() || "연동된 계좌 없음",
 			});
 			setIsSuccessModalOpen(true);
 		},
@@ -109,10 +104,7 @@ export default function NotificationInfoStep({
 			name: name.trim(),
 			birthdate: birthDate.trim(),
 			phone: phoneNumber.trim(),
-			account_number: accountNumber.trim(),
-			app_key: appKey.trim(),
-			app_secret_key: appSecretKey.trim(),
-			env: environment,
+			password: password.trim(),
 		});
 	};
 

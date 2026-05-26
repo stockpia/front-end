@@ -47,3 +47,15 @@ export type StockChartResponse = {
 		generatedAt?: string;
 	};
 };
+
+export type StockOrderBookItem = {
+	price: number;
+	quantity: number;
+};
+
+export type StockOrderBookResponse = {
+	symbol: string;
+	asks: StockOrderBookItem[];
+	bids: StockOrderBookItem[];
+	trade_strength: number;
+};

@@ -11,12 +11,14 @@ const TOTAL_STEPS = 3;
 
 export default function Login() {
 	const [searchParams] = useSearchParams();
-	const initialMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
+	const initialMode =
+		searchParams.get("mode") === "signup" ? "signup" : "signin";
 	const [mode, setMode] = useState<"signup" | "signin">(initialMode);
 	const [currentStep, setCurrentStep] = useState(1);
 	const [name, setName] = useState("");
 	const [birthDate, setBirthDate] = useState("");
 	const [phoneNumber, setPhoneNumber] = useState("");
+	const [password, setPassword] = useState("");
 	const [accountNumber, setAccountNumber] = useState("");
 	const [appKey, setAppKey] = useState("");
 	const [appSecretKey, setAppSecretKey] = useState("");
@@ -41,9 +43,11 @@ export default function Login() {
 					name={name}
 					birthDate={birthDate}
 					phoneNumber={phoneNumber}
+					password={password}
 					onChangeName={setName}
 					onChangeBirthDate={setBirthDate}
 					onChangePhoneNumber={setPhoneNumber}
+					onChangePassword={setPassword}
 					onNext={goNext}
 				/>
 			);
@@ -71,10 +75,8 @@ export default function Login() {
 				name={name}
 				birthDate={birthDate}
 				phoneNumber={phoneNumber}
+				password={password}
 				accountNumber={accountNumber}
-				appKey={appKey}
-				appSecretKey={appSecretKey}
-				environment={environment}
 				onPrev={goPrev}
 			/>
 		);
