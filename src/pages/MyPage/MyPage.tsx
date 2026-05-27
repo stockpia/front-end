@@ -1,8 +1,12 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import {
 	BarChart3,
 	BellRing,
 	ChartNoAxesCombined,
+	CheckCircle2,
 	ChevronRight,
+	ExternalLink,
 	MessageCircle,
 	Scale,
 	ShieldCheck,
@@ -10,51 +14,75 @@ import {
 	UserRound,
 	Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import CommonModal from "@/components/CommonModal";
 import { useAccountSession } from "@/hooks/useAccountSession";
+import {
+	connectTelegram,
+	getNotifySettings,
+	getTelegramStatus,
+	patchNotifySettings,
+	unlinkTelegram,
+} from "@/lib/api/accounts";
 import {
 	getInvestmentProfile,
 	subscribeInvestmentProfile,
 	type InvestmentProfile,
 } from "@/lib/investmentProfile";
+import type {
+	NotifySettings,
+	TelegramConnectResponse,
+	TelegramStatusResponse,
+} from "@/types/accounts";
 
 type AccountMode = "mock" | "real";
-type BriefingSetting = "marketBriefing" | "weekly";
+
+type BriefingKey = keyof NotifySettings;
 
 const briefingOptions: {
-	key: BriefingSetting;
+	key: BriefingKey;
 	label: string;
 	description: string;
 }[] = [
 	{
-		key: "marketBriefing",
-		label: "장 시작/마감 브리핑",
-		description: "개장 전 주요 이슈와 마감 후 시장 흐름을 받습니다.",
+		key: "notify_morning",
+		label: "장 시작 브리핑 (08:30)",
+		description: "개장 전 시장 동향·보유 종목 변동성 요약을 받습니다.",
 	},
 	{
-		key: "weekly",
-		label: "주간 브리핑",
-		description: "한 주의 수익률과 다음 주 체크 포인트를 받습니다.",
+		key: "notify_evening",
+		label: "장 마감 브리핑 (16:00)",
+		description: "오늘의 매매 결산과 지정 종목 리포트를 받습니다.",
+	},
+	{
+		key: "notify_event",
+		label: "장중 이벤트 푸시",
+		description: "평단 ±5% 같은 긴급 사건이 발생하면 즉시 알려드립니다.",
 	},
 ];
 
+function toErrorMessage(error: unknown) {
+	if (isAxiosError<{ error?: string }>(error)) {
+		return error.response?.data?.error ?? error.message;
+	}
+	return error instanceof Error ? error.message : "처리 중 오류가 발생했습니다.";
+}
+
 export default function MyPage() {
 	const accountSession = useAccountSession();
-	const [briefingSettings, setBriefingSettings] = useState<
-		Record<BriefingSetting, boolean>
-	>({
-		marketBriefing: true,
-		weekly: false,
-	});
-	const [telegramChatId, setTelegramChatId] = useState("");
-	const [botToken, setBotToken] = useState("");
+	const userId = accountSession?.userId ?? null;
+	const queryClient = useQueryClient();
+
 	const [name, setName] = useState(accountSession?.name ?? "");
 	const [phone, setPhone] = useState(accountSession?.phone ?? "");
 	const [email, setEmail] = useState("mate@example.com");
 	const [accountMode, setAccountMode] = useState<AccountMode>("mock");
 	const [investmentProfile, setInvestmentProfile] =
 		useState<InvestmentProfile | null>(() => getInvestmentProfile());
+	const [deepLink, setDeepLink] = useState<TelegramConnectResponse | null>(null);
+	const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
+
 	const accountNumber = accountSession?.accountNumber ?? "연동된 계좌 없음";
 	const accountModeLabel = accountMode === "mock" ? "모의" : "실전";
 
@@ -64,12 +92,87 @@ export default function MyPage() {
 		});
 	}, []);
 
-	const handleBriefingChange = (key: BriefingSetting, checked: boolean) => {
-		setBriefingSettings((prev) => ({
-			...prev,
-			[key]: checked,
-		}));
+	// ── 알림 수신 설정 (서버 동기화) ──────────────────────
+	const notifyQuery = useQuery({
+		queryKey: ["notify-settings", userId],
+		queryFn: ({ signal }) => getNotifySettings(userId as string, signal),
+		enabled: Boolean(userId),
+	});
+
+	const briefingSettings: NotifySettings = notifyQuery.data ?? {
+		notify_morning: true,
+		notify_evening: true,
+		notify_event: true,
 	};
+
+	const notifyPatchMutation = useMutation({
+		mutationFn: patchNotifySettings,
+		onSuccess: (data) => {
+			queryClient.setQueryData(["notify-settings", userId], data);
+		},
+	});
+
+	const handleBriefingChange = (key: BriefingKey, checked: boolean) => {
+		if (!userId) return;
+		// 즉시 UI 반영 (optimistic)
+		queryClient.setQueryData<NotifySettings>(
+			["notify-settings", userId],
+			(prev) => ({ ...(prev ?? briefingSettings), [key]: checked }),
+		);
+		notifyPatchMutation.mutate({ user_id: userId, [key]: checked });
+	};
+
+	// ── Telegram 연결 상태 ─────────────────────────────
+	const telegramStatusQuery = useQuery({
+		queryKey: ["telegram-status", userId],
+		queryFn: ({ signal }) => getTelegramStatus(userId as string, signal),
+		enabled: Boolean(userId),
+	});
+
+	const telegramStatus: TelegramStatusResponse = telegramStatusQuery.data ?? {
+		linked: false,
+	};
+
+	const connectMutation = useMutation({
+		mutationFn: connectTelegram,
+		onSuccess: (data) => setDeepLink(data),
+	});
+
+	const unlinkMutation = useMutation({
+		mutationFn: unlinkTelegram,
+		onSuccess: () => {
+			queryClient.setQueryData<TelegramStatusResponse>(
+				["telegram-status", userId],
+				{ linked: false },
+			);
+			setIsUnlinkConfirmOpen(false);
+		},
+	});
+
+	const handleStartConnect = () => {
+		if (!userId) return;
+		connectMutation.mutate({ user_id: userId });
+	};
+
+	const handleConfirmUnlink = () => {
+		if (!userId) return;
+		unlinkMutation.mutate({ user_id: userId });
+	};
+
+	const handleDeepLinkClose = () => {
+		setDeepLink(null);
+		// 봇 연결 후엔 사용자가 텔레그램에서 START 누르면 매핑됨 → 잠시 후 상태 재조회
+		queryClient.invalidateQueries({ queryKey: ["telegram-status", userId] });
+	};
+
+	const deepLinkExpiresLabel = useMemo(() => {
+		if (!deepLink) return null;
+		const date = new Date(deepLink.expires_at);
+		return date.toLocaleTimeString("ko-KR", {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	}, [deepLink]);
 
 	return (
 		<div className="space-y-6 py-8">
@@ -98,7 +201,7 @@ export default function MyPage() {
 			<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
 				<SectionTitle
 					icon={<BellRing className="h-5 w-5" />}
-					title="서비스 설정"
+					title="알림 설정"
 				/>
 				<div className="mt-5 grid gap-3">
 					{briefingOptions.map((option) => (
@@ -107,34 +210,50 @@ export default function MyPage() {
 							checked={briefingSettings[option.key]}
 							label={option.label}
 							description={option.description}
-							onChange={(checked) => handleBriefingChange(option.key, checked)}
+							onChange={(checked) =>
+								handleBriefingChange(option.key, checked)
+							}
 						/>
 					))}
 				</div>
+				{notifyPatchMutation.isError && (
+					<p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">
+						알림 설정 저장에 실패했어요. 잠시 후 다시 시도해주세요.
+					</p>
+				)}
+
+				{/* ── Telegram 섹션 (Deep Link 모델) ── */}
 				<div className="mt-6 border-t border-slate-100 pt-6">
 					<div className="flex items-center gap-3">
 						<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
 							<MessageCircle className="h-5 w-5" />
 						</div>
 						<h3 className="text-lg font-semibold text-slate-900">
-							Telegram 연동 정보
+							Telegram 연결
 						</h3>
 					</div>
-					<div className="mt-5 space-y-4">
-						<TextField
-							label="Telegram Chat ID"
-							value={telegramChatId}
-							onChange={setTelegramChatId}
-							placeholder="Chat ID를 입력하세요"
+
+					{telegramStatusQuery.isLoading ? (
+						<p className="mt-4 text-sm text-slate-500">상태 확인 중...</p>
+					) : telegramStatus.linked ? (
+						<TelegramLinkedPanel
+							username={telegramStatus.telegram_username}
+							linkedAt={telegramStatus.linked_at}
+							onUnlink={() => setIsUnlinkConfirmOpen(true)}
 						/>
-						<TextField
-							label="Bot Token"
-							value={botToken}
-							onChange={setBotToken}
-							placeholder="Bot Token을 입력하세요"
+					) : (
+						<TelegramConnectPanel
+							onStart={handleStartConnect}
+							isPending={connectMutation.isPending}
+							errorMessage={
+								connectMutation.isError
+									? toErrorMessage(connectMutation.error)
+									: null
+							}
 						/>
-					</div>
+					)}
 				</div>
+
 				<div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-6">
 					<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
 						<ShieldCheck className="h-5 w-5" />
@@ -180,6 +299,133 @@ export default function MyPage() {
 					변경사항 저장
 				</button>
 			</section>
+
+			{/* ── Deep Link 모달 ── */}
+			<CommonModal
+				open={Boolean(deepLink)}
+				onClose={handleDeepLinkClose}
+				title="텔레그램에서 연결을 완료하세요"
+				description={
+					deepLink
+						? `아래 버튼을 누르면 텔레그램이 열려요.\n채팅창에서 [START] 버튼을 누르면 자동으로 연결됩니다.\n\n링크 유효 시간: ${deepLinkExpiresLabel} 까지 (약 10분)`
+						: ""
+				}
+				icon={<MessageCircle className="h-6 w-6 text-sky-600" />}
+				actionLabel="텔레그램으로 이동"
+				onAction={() => {
+					if (!deepLink) return;
+					window.open(deepLink.deep_link, "_blank", "noopener,noreferrer");
+				}}
+				secondaryActionLabel="닫기"
+				onSecondaryAction={handleDeepLinkClose}
+			>
+				{deepLink && (
+					<div className="mt-4 break-all rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+						{deepLink.deep_link}
+					</div>
+				)}
+			</CommonModal>
+
+			<CommonModal
+				open={isUnlinkConfirmOpen}
+				onClose={() => setIsUnlinkConfirmOpen(false)}
+				title="Telegram 연결을 해제할까요?"
+				description={
+					"연결을 해제하면 더 이상 브리핑·이벤트 알림을 받지 못해요.\n다시 연결하려면 마이페이지에서 한 번 더 진행하시면 됩니다."
+				}
+				actionLabel={unlinkMutation.isPending ? "해제 중..." : "연결 해제"}
+				onAction={handleConfirmUnlink}
+				secondaryActionLabel="취소"
+				onSecondaryAction={() => setIsUnlinkConfirmOpen(false)}
+			/>
+		</div>
+	);
+}
+
+type TelegramConnectPanelProps = {
+	onStart: () => void;
+	isPending: boolean;
+	errorMessage: string | null;
+};
+
+function TelegramConnectPanel({
+	onStart,
+	isPending,
+	errorMessage,
+}: TelegramConnectPanelProps) {
+	return (
+		<div className="mt-5">
+			<div className="rounded-2xl border border-sky-100 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-4">
+				<p className="text-sm font-semibold text-slate-900">
+					아직 텔레그램에 연결되지 않았어요.
+				</p>
+				<p className="mt-1 text-xs leading-5 text-slate-500">
+					버튼을 누르면 연결용 일회용 링크를 받아요. 텔레그램에서 [START] 한
+					번이면 자동 연결됩니다. (별도 토큰/Chat ID 입력 불필요)
+				</p>
+				<button
+					type="button"
+					onClick={onStart}
+					disabled={isPending}
+					className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+				>
+					{isPending ? "링크 발급 중..." : "텔레그램으로 연결하기"}
+					<ExternalLink className="h-4 w-4" />
+				</button>
+			</div>
+			{errorMessage && (
+				<p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+					{errorMessage}
+				</p>
+			)}
+		</div>
+	);
+}
+
+type TelegramLinkedPanelProps = {
+	username: string | null;
+	linkedAt: string;
+	onUnlink: () => void;
+};
+
+function TelegramLinkedPanel({
+	username,
+	linkedAt,
+	onUnlink,
+}: TelegramLinkedPanelProps) {
+	const linkedAtLabel = useMemo(() => {
+		const date = new Date(linkedAt);
+		return date.toLocaleString("ko-KR", {
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	}, [linkedAt]);
+
+	return (
+		<div className="mt-5">
+			<div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+				<div className="flex items-start gap-3">
+					<CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+					<div className="min-w-0 flex-1">
+						<p className="text-sm font-semibold text-emerald-900">
+							{username ? `@${username} 와 연결됨` : "연결 완료"}
+						</p>
+						<p className="mt-1 text-xs text-emerald-800/80">
+							연결 시각: {linkedAtLabel}
+						</p>
+					</div>
+				</div>
+			</div>
+			<button
+				type="button"
+				onClick={onUnlink}
+				className="mt-3 inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+			>
+				연결 해제
+			</button>
 		</div>
 	);
 }
