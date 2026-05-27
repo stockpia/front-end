@@ -10,6 +10,7 @@ import {
 	useHoldingsQuery,
 	useStocksListQuery,
 } from "@/hooks/queries/useStocksListQueries";
+import { useStocksSearchQuery } from "@/hooks/queries/useStocksSearchQuery";
 import { useAccountSession } from "@/hooks/useAccountSession";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
 import { clearAccountSession } from "@/lib/auth/session";
@@ -42,6 +43,7 @@ export default function Stocks() {
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
+	const [submittedSearchTerm, setSubmittedSearchTerm] = useState("");
 	const navigate = useNavigate();
 	const userId = accountSession?.userId;
 	const isSignedIn = Boolean(userId);
@@ -74,6 +76,10 @@ export default function Stocks() {
 		order: "desc",
 		enabled: activeTab === "all",
 	});
+	const stocksSearchQuery = useStocksSearchQuery({
+		query: submittedSearchTerm,
+		enabled: activeTab === "all" && submittedSearchTerm.length > 0,
+	});
 	const holdingsQuery = useHoldingsQuery({
 		userId,
 		sort: holdingsSort,
@@ -104,21 +110,45 @@ export default function Stocks() {
 	}, [activeTab, holdingsQuery.holdings, stocksListQuery.stocks]);
 
 	const normalizedSearchTerm = useMemo(
-		() => searchTerm.trim().toLowerCase(),
-		[searchTerm],
+		() => submittedSearchTerm.trim().toLowerCase(),
+		[submittedSearchTerm],
 	);
 
-	const filteredStocks = useMemo(() => {
+	const filteredStocks = useMemo<StockItem[]>(() => {
 		if (!normalizedSearchTerm) {
 			return displayedStocks;
 		}
 
-		return displayedStocks.filter((stock) => {
+		// 1) 현재 표시 중인 리스트 (top 30 또는 보유 종목) 에서 부분 일치 우선
+		const localMatches = displayedStocks.filter((stock) => {
 			const name = stock.name.toLowerCase();
 			const ticker = stock.ticker.toLowerCase();
-			return name === normalizedSearchTerm || ticker === normalizedSearchTerm;
+			return (
+				name.includes(normalizedSearchTerm) ||
+				ticker.includes(normalizedSearchTerm)
+			);
 		});
-	}, [displayedStocks, normalizedSearchTerm]);
+
+		// 2) 보유 탭이거나 로컬 매치가 충분히 있으면 그대로 사용
+		if (activeTab === "holding" || localMatches.length > 0) {
+			return localMatches;
+		}
+
+		// 3) 전체 종목 탭에서 로컬 매치 없을 땐 백엔드 검색 결과 사용
+		//    검색 결과는 가격/거래량 정보가 없어 0 으로 채움 (상세 페이지에서 fetch).
+		return stocksSearchQuery.stocks.map((item) => ({
+			ticker: item.ticker,
+			name: item.name,
+			current_price: 0,
+			change_rate: 0,
+			volume: 0,
+		}));
+	}, [
+		displayedStocks,
+		normalizedSearchTerm,
+		activeTab,
+		stocksSearchQuery.stocks,
+	]);
 
 	const sortedStocks = useMemo(() => {
 		if (activeTab !== "holding") {
@@ -149,13 +179,17 @@ export default function Stocks() {
 	const isLoading =
 		activeTab === "holding"
 			? holdingsQuery.isLoading
-			: stocksListQuery.isLoading;
+			: submittedSearchTerm.length > 0
+				? stocksSearchQuery.isLoading
+				: stocksListQuery.isLoading;
 	const error =
 		activeTab === "holding"
 			? isSignedIn
 				? holdingsQuery.errorMessage
 				: null
-			: stocksListQuery.errorMessage;
+			: submittedSearchTerm.length > 0
+				? stocksSearchQuery.errorMessage
+				: stocksListQuery.errorMessage;
 	const notice =
 		activeTab === "holding" && !isSignedIn
 			? "보유 종목은 로그인 후 조회할 수 있습니다."
@@ -247,10 +281,16 @@ export default function Stocks() {
 			<section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
 				<SearchBar
 					value={searchTerm}
-					onChange={setSearchTerm}
+					onChange={(value) => {
+						setSearchTerm(value);
+						if (value.trim().length === 0) {
+							setSubmittedSearchTerm("");
+						}
+					}}
 					onSubmit={() => {
 						const normalized = searchTerm.trim();
 						setSearchTerm(normalized);
+						setSubmittedSearchTerm(normalized);
 					}}
 				/>
 				<div className="mt-6">
