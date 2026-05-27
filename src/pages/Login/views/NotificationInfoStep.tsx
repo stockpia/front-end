@@ -1,10 +1,13 @@
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Info } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
-import { signupAccount } from "@/lib/api/accounts";
+import {
+	patchNotifySettings,
+	signupAccount,
+} from "@/lib/api/accounts";
 import { setAccountSession } from "@/lib/auth/session";
 
 type BriefingSetting = "marketBriefing" | "weekly";
@@ -60,8 +63,6 @@ export default function NotificationInfoStep({
 	onPrev,
 }: NotificationInfoStepProps) {
 	const navigate = useNavigate();
-	const [telegramChatId, setTelegramChatId] = useState("");
-	const [botToken, setBotToken] = useState("");
 	const [briefingSettings, setBriefingSettings] = useState<
 		Record<BriefingSetting, boolean>
 	>({
@@ -73,7 +74,7 @@ export default function NotificationInfoStep({
 
 	const signupMutation = useMutation({
 		mutationFn: signupAccount,
-		onSuccess: (response, variables) => {
+		onSuccess: async (response, variables) => {
 			setErrorMessage(null);
 			setAccountSession({
 				userId: response.user_id,
@@ -81,6 +82,21 @@ export default function NotificationInfoStep({
 				phone: variables.phone,
 				accountNumber: accountNumber.trim() || "연동된 계좌 없음",
 			});
+
+			// 사용자가 토글한 알림 설정을 가입 직후 한 번에 반영
+			try {
+				await patchNotifySettings({
+					user_id: response.user_id,
+					notify_morning: briefingSettings.marketBriefing,
+					notify_evening: briefingSettings.marketBriefing,
+					// 주간 브리핑은 아직 별도 백엔드 필드 없으므로 notify_event 와 매핑하지 않음.
+					// 추후 backend 에 notify_weekly 추가되면 여기에 연동.
+				});
+			} catch {
+				// 알림 설정 실패는 회원가입 성공 자체를 막지 않음.
+				// 사용자는 마이페이지에서 다시 토글 가능.
+			}
+
 			setIsSuccessModalOpen(true);
 		},
 		onError: (error) => {
@@ -114,25 +130,29 @@ export default function NotificationInfoStep({
 				<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
 					<MessageCircle className="h-5 w-5" />
 				</div>
-				<h2 className="text-xl font-semibold">Telegram 및 알림 설정</h2>
+				<h2 className="text-xl font-semibold">Telegram 알림 설정</h2>
 			</div>
 
 			<div className="mt-6 space-y-6 text-left">
-				<TextField
-					label="Telegram Chat ID"
-					value={telegramChatId}
-					onChange={setTelegramChatId}
-					placeholder="Chat ID를 입력하세요"
-				/>
-				<TextField
-					label="Bot Token"
-					value={botToken}
-					onChange={setBotToken}
-					placeholder="Bot Token을 입력하세요"
-				/>
+				{/* Deep Link 모델 안내 — 사용자는 토큰을 입력하지 않음 */}
+				<div className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+					<Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+					<div className="min-w-0 text-sm leading-6 text-sky-900">
+						<p className="font-semibold">
+							Telegram 봇 연결은 회원가입 후 마이페이지에서 진행해요.
+						</p>
+						<p className="mt-1 text-sky-800/90">
+							버튼 한 번이면 자동 연결됩니다. 별도로 Bot Token 이나 Chat ID 를
+							입력하지 않아도 돼요.
+						</p>
+					</div>
+				</div>
 
 				<div>
 					<p className="text-sm font-semibold text-slate-700">알림 설정</p>
+					<p className="mt-1 text-xs text-slate-500">
+						가입 직후 적용되며, 마이페이지에서 언제든 변경할 수 있어요.
+					</p>
 					<div className="mt-3 grid gap-3">
 						{briefingOptions.map((option) => (
 							<SquareCheckBox
@@ -176,40 +196,16 @@ export default function NotificationInfoStep({
 			<CommonModal
 				open={isSuccessModalOpen}
 				onClose={() => setIsSuccessModalOpen(false)}
-				title="계좌 연결이 완료됐어요"
+				title="회원가입이 완료됐어요"
 				description={
-					"이제 주토피아에서\n해당 계좌를 기반으로\n다양한 리포트와 서비스를\n사용할 수 있어요."
+					"이제 마이페이지에서 한국투자증권 계좌와\nTelegram 봇을 연결하실 수 있어요.\n\nTelegram 연결은 버튼 한 번이면 됩니다."
 				}
-				actionLabel="메인 화면으로"
-				onAction={() => navigate("/stocks")}
-				secondaryActionLabel="챗봇으로"
-				onSecondaryAction={handleMoveToChatbot}
+				actionLabel="마이페이지로"
+				onAction={() => navigate("/mypage")}
+				secondaryActionLabel="메인으로"
+				onSecondaryAction={() => navigate("/stocks")}
 			/>
 		</section>
-	);
-}
-
-type TextFieldProps = {
-	label: string;
-	value: string;
-	onChange: (value: string) => void;
-	placeholder?: string;
-};
-
-function TextField({ label, value, onChange, placeholder }: TextFieldProps) {
-	return (
-		<label className="block">
-			<span className="mb-2 block text-sm font-semibold text-slate-700">
-				{label}
-			</span>
-			<input
-				type="text"
-				value={value}
-				placeholder={placeholder}
-				onChange={(event) => onChange(event.target.value)}
-				className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-slate-400"
-			/>
-		</label>
 	);
 }
 
