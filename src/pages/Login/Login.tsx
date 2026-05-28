@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import LoginStepHeader from "./components/LoginStepHeader";
-import AccountInfoStep from "./views/AccountInfoStep";
 import BasicInfoStep from "./views/BasicInfoStep";
 import NotificationInfoStep from "./views/NotificationInfoStep";
 import SigninStep from "./views/SigninStep";
-import type { AccountEnvironment } from "@/types/accounts";
 
-const TOTAL_STEPS = 3;
+// KIS 연동은 마이페이지에서 별도로 — 회원가입 흐름에서 제외.
+// 1단계: 기본 정보 (login_id / 이름 / 생년월일 / 비번 / 전화번호[선택])
+// 2단계: 알림 설정 + 가입 완료
+const TOTAL_STEPS = 2;
 
 export default function Login() {
 	const [searchParams] = useSearchParams();
@@ -15,14 +16,11 @@ export default function Login() {
 		searchParams.get("mode") === "signup" ? "signup" : "signin";
 	const [mode, setMode] = useState<"signup" | "signin">(initialMode);
 	const [currentStep, setCurrentStep] = useState(1);
+	const [loginId, setLoginId] = useState("");
 	const [name, setName] = useState("");
 	const [birthDate, setBirthDate] = useState("");
 	const [phoneNumber, setPhoneNumber] = useState("");
 	const [password, setPassword] = useState("");
-	const [accountNumber, setAccountNumber] = useState("");
-	const [appKey, setAppKey] = useState("");
-	const [appSecretKey, setAppSecretKey] = useState("");
-	const [environment, setEnvironment] = useState<AccountEnvironment>("vps");
 
 	const goNext = () => {
 		setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
@@ -40,10 +38,12 @@ export default function Login() {
 		if (currentStep === 1) {
 			return (
 				<BasicInfoStep
+					loginId={loginId}
 					name={name}
 					birthDate={birthDate}
 					phoneNumber={phoneNumber}
 					password={password}
+					onChangeLoginId={setLoginId}
 					onChangeName={setName}
 					onChangeBirthDate={setBirthDate}
 					onChangePhoneNumber={setPhoneNumber}
@@ -53,30 +53,13 @@ export default function Login() {
 			);
 		}
 
-		if (currentStep === 2) {
-			return (
-				<AccountInfoStep
-					accountNumber={accountNumber}
-					appKey={appKey}
-					appSecretKey={appSecretKey}
-					environment={environment}
-					onChangeAccountNumber={setAccountNumber}
-					onChangeAppKey={setAppKey}
-					onChangeAppSecretKey={setAppSecretKey}
-					onChangeEnvironment={setEnvironment}
-					onPrev={goPrev}
-					onNext={goNext}
-				/>
-			);
-		}
-
 		return (
 			<NotificationInfoStep
+				loginId={loginId}
 				name={name}
 				birthDate={birthDate}
 				phoneNumber={phoneNumber}
 				password={password}
-				accountNumber={accountNumber}
 				onPrev={goPrev}
 			/>
 		);

@@ -30,11 +30,11 @@ const briefingOptions: {
 ];
 
 type NotificationInfoStepProps = {
+	loginId: string;
 	name: string;
 	birthDate: string;
 	phoneNumber: string;
 	password: string;
-	accountNumber: string;
 	onPrev: () => void;
 };
 
@@ -55,11 +55,11 @@ function toErrorMessage(error: unknown) {
 }
 
 export default function NotificationInfoStep({
+	loginId,
 	name,
 	birthDate,
 	phoneNumber,
 	password,
-	accountNumber,
 	onPrev,
 }: NotificationInfoStepProps) {
 	const navigate = useNavigate();
@@ -78,9 +78,10 @@ export default function NotificationInfoStep({
 			setErrorMessage(null);
 			setAccountSession({
 				userId: response.user_id,
+				loginId: response.login_id,
 				name: variables.name,
-				phone: variables.phone,
-				accountNumber: accountNumber.trim() || "연동된 계좌 없음",
+				phone: variables.phone || "",
+				accountNumber: "미연동",  // KIS 연동은 마이페이지에서 별도
 			});
 
 			// 사용자가 토글한 알림 설정을 가입 직후 한 번에 반영
@@ -111,16 +112,14 @@ export default function NotificationInfoStep({
 		}));
 	};
 
-	const handleMoveToChatbot = () => {
-		window.close();
-	};
-
 	const handleSubmit = () => {
+		const trimmedPhone = phoneNumber.trim();
 		signupMutation.mutate({
+			login_id: loginId.trim(),
 			name: name.trim(),
 			birthdate: birthDate.trim(),
-			phone: phoneNumber.trim(),
 			password: password.trim(),
+			...(trimmedPhone ? { phone: trimmedPhone } : {}),
 		});
 	};
 
