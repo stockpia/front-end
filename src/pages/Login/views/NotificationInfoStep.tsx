@@ -114,10 +114,13 @@ export default function NotificationInfoStep({
 
 	const handleSubmit = () => {
 		const trimmedPhone = phoneNumber.trim();
+		// 백엔드 User.birthdate 는 varchar(8) — YYYYMMDD 형식. UI 의 "1990-01-01"
+		// 그대로 보내면 PostgreSQL 이 길이 초과로 500. 하이픈 제거 후 전송.
+		const birthdateDigits = birthDate.replace(/\D/g, "");
 		signupMutation.mutate({
 			login_id: loginId.trim(),
 			name: name.trim(),
-			birthdate: birthDate.trim(),
+			birthdate: birthdateDigits,
 			password: password.trim(),
 			...(trimmedPhone ? { phone: trimmedPhone } : {}),
 		});
