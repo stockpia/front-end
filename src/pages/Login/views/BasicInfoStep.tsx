@@ -56,7 +56,7 @@ export default function BasicInfoStep({
 					<input
 						className="w-full rounded-md border px-3 py-2"
 						type="text"
-						placeholder="영문/숫자 (예: hanu)"
+						placeholder="아이디를 입력하세요"
 						autoComplete="username"
 						value={loginId}
 						onChange={(event) => onChangeLoginId(event.target.value)}
