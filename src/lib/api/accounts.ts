@@ -8,11 +8,14 @@ import type {
 	AccountSignupResponse,
 	KisConnectPayload,
 	KisConnectResponse,
+	KisDisconnectPayload,
+	KisDisconnectResponse,
 	NotifySettings,
 	NotifySettingsPatchPayload,
 	TelegramConnectPayload,
 	TelegramConnectResponse,
 	TelegramStatusResponse,
+	UserDetailResponse,
 	TelegramUnlinkPayload,
 	TelegramUnlinkResponse,
 } from "@/types/accounts";
@@ -45,6 +48,21 @@ export async function connectKisAccount(payload: KisConnectPayload) {
 	const { data } = await api.post<KisConnectResponse>(
 		"/web/kis/connect",
 		payload,
+	);
+	return data;
+}
+
+export async function disconnectKisAccount(payload: KisDisconnectPayload) {
+	const { data } = await api.delete<KisDisconnectResponse>("/web/kis/connect", {
+		data: payload,
+	});
+	return data;
+}
+
+export async function getUserDetail(userId: string, signal?: AbortSignal) {
+	const { data } = await api.get<UserDetailResponse>(
+		`/web/users/${encodeURIComponent(userId)}/`,
+		{ signal },
 	);
 	return data;
 }
