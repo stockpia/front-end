@@ -11,42 +11,55 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAccountSession } from "@/hooks/useAccountSession";
 
 const services = [
 	{
 		title: "종목 차트",
 		description: "다양한 차트로 주가 흐름을 한눈에 파악하세요.",
 		icon: BarChart3,
+		path: "/stocks",
+		isPublic: true,
 	},
 	{
 		title: "종목 리포트",
 		description:
 			"재무제표를 몰라도 괜찮아요. AI가 기업의 핵심 가치와 상태를 3줄로 쉽게 요약해줘요.",
 		icon: FileText,
+		path: "/stocks",
+		isPublic: true,
 	},
 	{
 		title: "뉴스/커뮤니티",
 		description:
 			"수많은 뉴스 중 내 주식에 진짜 영향을 미칠 핵심 호재/악재만 필터링해서 보여드려요.",
 		icon: MessageSquareText,
+		path: "/stocks",
+		isPublic: true,
 	},
 	{
 		title: "거래 상세 리포트",
 		description:
 			"내가 언제, 얼마에 사고팔았는지. 투자 기록을 꼼꼼하게 정리해 드립니다.",
 		icon: BriefcaseBusiness,
+		path: "/trades",
+		isPublic: false,
 	},
 	{
 		title: "매수/매도",
 		description:
 			"복잡한 인증 절차 없이, 원하는 타이밍에 가장 쉽고 빠르게 주문을 넣을 수 있습니다.",
 		icon: ShoppingBag,
+		path: "/stocks",
+		isPublic: false,
 	},
 	{
 		title: "주식 AI 알림",
 		description:
 			"매일 아침 투자 전략부터 장 마감 요약까지. Telegram으로 가장 먼저 알려드릴게요.",
 		icon: BellRing,
+		path: "/mypage",
+		isPublic: false,
 	},
 ];
 
@@ -56,19 +69,39 @@ const previewItems = [
 	{ label: "알림", value: "개장 전 전략 도착" },
 ];
 
+const featuredServiceTitles = new Set([
+	"종목 리포트",
+	"뉴스/커뮤니티",
+	"거래 상세 리포트",
+]);
+
 export default function Home() {
+	const accountSession = useAccountSession();
+	const isSignedIn = Boolean(accountSession?.userId);
+	const featuredServices = services.filter((service) =>
+		featuredServiceTitles.has(service.title),
+	);
+	const otherServices = services.filter(
+		(service) => !featuredServiceTitles.has(service.title),
+	);
+
 	return (
-		<div className="min-h-svh bg-white pb-10">
-			<header className="flex items-center justify-between py-5">
-				<Link to="/" className="text-lg font-black tracking-tight text-slate-950">
+		<div className="min-h-svh bg-white px-1 pb-10 sm:px-0">
+			<header className="sticky top-0 z-30 flex items-center justify-between bg-white/95 py-5 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+				<Link
+					to="/"
+					className="text-lg font-black tracking-tight text-slate-950"
+				>
 					M.A.T.E
 				</Link>
-				<Link
-					to="/login"
-					className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-				>
-					로그인
-				</Link>
+				{!isSignedIn && (
+					<Link
+						to="/login"
+						className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+					>
+						로그인
+					</Link>
+				)}
 			</header>
 
 			<main>
@@ -77,32 +110,30 @@ export default function Home() {
 						<Sparkles className="h-3.5 w-3.5" />
 						AI 투자 M.A.T.E
 					</div>
-					<h1 className="mt-5 text-[2.45rem] leading-[1.1] font-black tracking-tight text-slate-950">
+					<h1 className="mt-5 text-[2.45rem] leading-[1.08] font-black tracking-tight text-slate-950">
 						복잡한 주식 창은 끄고,
 						<br />
-						필요한 정보만
+						<span className="relative inline-block">
+							<span className="relative z-10">필요한 정보만</span>
+							<span className="absolute inset-x-0 bottom-1 z-0 h-3 rounded-full bg-emerald-200/80" />
+						</span>
 						<br />
 						M.A.T.E에게.
 					</h1>
 					<p className="mt-5 text-lg leading-8 font-semibold text-slate-500">
-						차트, 리포트, 뉴스, 거래 기록까지 투자 판단에 필요한 흐름을
-						쉽게 정리해 드려요.
+						차트, 리포트, 뉴스, 거래 기록까지 투자 판단에 필요한 흐름을 쉽게
+						정리해 드려요.
 					</p>
-					<div className="mt-8 flex flex-col gap-3 sm:flex-row">
-						<Link
-							to="/stocks"
-							className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-base font-bold text-white transition hover:bg-slate-800"
-						>
-							종목 보러 가기
-							<ArrowRight className="h-5 w-5" />
-						</Link>
-						<Link
-							to="/login"
-							className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 text-base font-bold text-slate-800 transition hover:bg-slate-200"
-						>
-							계좌 연동하기
-						</Link>
-					</div>
+					{!isSignedIn && (
+						<div className="mt-8 flex flex-col gap-3 sm:flex-row">
+							<Link
+								to="/login"
+								className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-base font-bold text-white transition hover:bg-slate-800"
+							>
+								계좌 연동하기
+							</Link>
+						</div>
+					)}
 
 					<div className="mt-12 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_54px_-42px_rgba(15,23,42,0.55)]">
 						<div>
@@ -134,8 +165,8 @@ export default function Home() {
 							</div>
 							<div className="mt-5 rounded-2xl bg-slate-50 p-4">
 								<p className="text-sm leading-6 font-semibold text-slate-700">
-									오늘은 반도체 업황 개선 기대가 커졌어요. 단기 변동성은
-									있지만, 장 마감 후 수급 변화도 함께 확인해 보세요.
+									오늘은 반도체 업황 개선 기대가 커졌어요. 단기 변동성은 있지만,
+									장 마감 후 수급 변화도 함께 확인해 보세요.
 								</p>
 							</div>
 						</div>
@@ -149,25 +180,96 @@ export default function Home() {
 						<br />
 						하나로 모았어요.
 					</h2>
-					<div className="mt-8 divide-y divide-slate-100 rounded-[28px] border border-slate-200 bg-white">
-						{services.map((service) => {
+					<div className="mt-8 grid gap-3">
+						{featuredServices.map((service) => {
 							const Icon = service.icon;
+							const showAction = isSignedIn || service.isPublic;
+							const servicePath =
+								service.path === "/trades"
+									? `/trades/${accountSession?.userId}`
+									: service.path;
+
 							return (
 								<article
 									key={service.title}
-									className="p-5"
+									className="group relative overflow-hidden rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_20px_64px_-46px_rgba(15,23,42,0.65)] transition duration-200 ease-out will-change-transform hover:-translate-y-1 hover:scale-[1.01] hover:border-slate-300 hover:shadow-[0_26px_72px_-46px_rgba(15,23,42,0.8)] active:scale-[0.99]"
 								>
-									<div className="flex items-start gap-4">
-										<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-											<Icon className="h-6 w-6" />
+									<div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-slate-950" />
+									<div className="flex h-full flex-col">
+										<div className="flex items-start gap-3">
+											<div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition duration-200 group-hover:bg-slate-950 group-hover:text-white group-hover:shadow-[0_14px_28px_-20px_rgba(15,23,42,0.9)]">
+												<Icon className="h-6 w-6 transition duration-200 group-hover:scale-110" />
+											</div>
+											<div className="relative min-w-0">
+												<h3 className="text-lg font-black">{service.title}</h3>
+												<p className="mt-2 text-sm leading-6 font-semibold text-slate-500">
+													{service.description}
+												</p>
+											</div>
 										</div>
-										<div className="min-w-0">
-											<h3 className="text-base font-black text-slate-950">
-												{service.title}
-											</h3>
-											<p className="mt-1 text-sm leading-6 font-semibold text-slate-500">
-												{service.description}
-											</p>
+										<div className="mt-5 flex min-h-10 items-end">
+											{showAction ? (
+												<Link
+													to={servicePath}
+													className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold text-white transition hover:bg-slate-800"
+												>
+													바로 가기
+													<ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+												</Link>
+											) : (
+												<span className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-100 px-4 py-3 text-xs font-bold text-slate-400">
+													로그인 후 이용 가능
+												</span>
+											)}
+										</div>
+									</div>
+								</article>
+							);
+						})}
+					</div>
+					<div className="mt-3 grid gap-3 sm:grid-cols-2">
+						{otherServices.map((service) => {
+							const Icon = service.icon;
+							const showAction = isSignedIn || service.isPublic;
+							const servicePath =
+								service.path === "/trades"
+									? `/trades/${accountSession?.userId}`
+									: service.path;
+
+							return (
+								<article
+									key={service.title}
+									className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_16px_50px_-42px_rgba(15,23,42,0.7)] transition duration-200 ease-out will-change-transform hover:-translate-y-1 hover:scale-[1.01] hover:border-slate-300 hover:shadow-[0_22px_60px_-42px_rgba(15,23,42,0.85)] active:scale-[0.99]"
+								>
+									<div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-900 via-emerald-500 to-sky-500 opacity-0 transition group-hover:opacity-100" />
+									<div className="flex h-full flex-col">
+										<div className="flex items-start gap-3">
+											<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition duration-200 group-hover:bg-slate-950 group-hover:text-white group-hover:shadow-[0_14px_28px_-20px_rgba(15,23,42,0.9)]">
+												<Icon className="h-6 w-6 transition duration-200 group-hover:scale-110" />
+											</div>
+											<div className="min-w-0">
+												<h3 className="text-base font-black text-slate-950">
+													{service.title}
+												</h3>
+												<p className="mt-1 text-sm leading-6 font-semibold text-slate-500">
+													{service.description}
+												</p>
+											</div>
+										</div>
+										<div className="mt-5 flex min-h-10 items-end">
+											{showAction ? (
+												<Link
+													to={servicePath}
+													className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold text-white transition group-hover:bg-slate-800"
+												>
+													바로 가기
+													<ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+												</Link>
+											) : (
+												<span className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-100 px-4 py-3 text-xs font-bold text-slate-400">
+													로그인 후 이용 가능
+												</span>
+											)}
 										</div>
 									</div>
 								</article>
@@ -186,8 +288,8 @@ export default function Home() {
 						바로 주문까지.
 					</h2>
 					<p className="mt-3 text-sm leading-6 font-semibold text-slate-500">
-						종목을 고르면 실시간 가격, AI 리포트, 뉴스와 커뮤니티
-						흐름을 한 화면에서 확인할 수 있어요.
+						종목을 고르면 실시간 가격, AI 리포트, 뉴스와 커뮤니티 흐름을 한
+						화면에서 확인할 수 있어요.
 					</p>
 					<Link
 						to="/stocks"

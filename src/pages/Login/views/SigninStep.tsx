@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { signinAccount } from "@/lib/api/accounts";
 import { setAccountSession } from "@/lib/auth/session";
 
-const DEMO_ACCOUNT_LOGIN_ID = "test";
-const DEMO_ACCOUNT_PASSWORD = "Test1234!";
+const DEMO_ACCOUNT_LOGIN_ID = "admin";
+const DEMO_ACCOUNT_PASSWORD = "Admin1234!";
 
 function toErrorMessage(error: unknown) {
 	if (
