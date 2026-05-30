@@ -311,98 +311,132 @@ export default function TradeDetail() {
 										)}
 									</article>
 
-									{report.trading_tendency && (
-										<article className="rounded-2xl border border-slate-200 p-4">
-											<h3 className="text-sm font-semibold text-slate-900">
-												거래 성향 분석
-											</h3>
-											<p className="mt-2 text-sm leading-6 text-slate-700">
-												평균 보유 기간은{" "}
-												{report.trading_tendency.avg_holding_days}
-												일입니다.
-												<br />
-												매수 활동일은 {report.trading_tendency.buy_days}일, 매도
-												활동일은 {report.trading_tendency.sell_days}일입니다.
-											</p>
-										</article>
-									)}
+									{/* 분석 섹션 — 백엔드의 prose `text` 필드 1순위. 개별 필드는
+									    백엔드/프론트 명명이 달라 undefined.toFixed 류 throw 위험 큼 */}
+									{(() => {
+										const t = report.trading_tendency;
+										const text =
+											t?.text ??
+											(t?.avg_holding_days != null
+												? `평균 보유 기간은 ${t.avg_holding_days}일입니다.`
+												: null);
+										if (!text) return null;
+										return (
+											<article className="rounded-2xl border border-slate-200 p-4">
+												<h3 className="text-sm font-semibold text-slate-900">
+													거래 성향 분석
+												</h3>
+												<p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">
+													{text}
+												</p>
+											</article>
+										);
+									})()}
 
-									{report.frequency_change && (
-										<article className="rounded-2xl border border-slate-200 p-4">
-											<h3 className="text-sm font-semibold text-slate-900">
-												매매 빈도 변화
-											</h3>
-											<p className="mt-2 text-sm leading-6 text-slate-700">
-												매수 빈도는 {report.frequency_change.buy_frequency},
-												매도 빈도는 {report.frequency_change.sell_frequency}
-												입니다.
-											</p>
-										</article>
-									)}
+									{(() => {
+										const f = report.frequency_change;
+										const text =
+											f?.text ??
+											(f?.buy_frequency
+												? `매수 빈도는 ${f.buy_frequency}, 매도 빈도는 ${f.sell_frequency ?? "-"}입니다.`
+												: null);
+										if (!text) return null;
+										return (
+											<article className="rounded-2xl border border-slate-200 p-4">
+												<h3 className="text-sm font-semibold text-slate-900">
+													매매 빈도 변화
+												</h3>
+												<p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">
+													{text}
+												</p>
+											</article>
+										);
+									})()}
 
-									{report.water_down_pattern && (
-										<article className="rounded-2xl border border-slate-200 p-4">
-											<h3 className="text-sm font-semibold text-slate-900">
-												물타기 패턴 분석
-											</h3>
-											<p className="mt-2 text-sm leading-6 text-slate-700">
-												물타기 매매는 총 {report.water_down_pattern.count}회
-												감지되었습니다.
-												<br />
-												평균 손실 구간은{" "}
-												{formatRatio(report.water_down_pattern.avg_loss_rate)}
-												입니다.
-											</p>
-										</article>
-									)}
+									{(() => {
+										const w = report.water_down_pattern;
+										const text =
+											w?.text ??
+											(w?.count != null
+												? `물타기 매매는 총 ${w.count}회 감지되었습니다.`
+												: null);
+										if (!text) return null;
+										return (
+											<article className="rounded-2xl border border-slate-200 p-4">
+												<h3 className="text-sm font-semibold text-slate-900">
+													물타기 패턴 분석
+												</h3>
+												<p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">
+													{text}
+												</p>
+											</article>
+										);
+									})()}
 
-									{report.concentration_analysis ? (
-										<article className="rounded-2xl border border-slate-200 p-4">
-											<h3 className="text-sm font-semibold text-slate-900">
-												종목 집중도 분석
-											</h3>
-											<p className="mt-2 text-sm leading-6 text-slate-700">
-												전체 거래 중 {report.concentration_analysis.top_stock}{" "}
-												비중은{" "}
-												{formatRatio(
-													report.concentration_analysis.concentration_rate,
-												)}
-												입니다.
-											</p>
-										</article>
-									) : (
-										<article className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">
-											종목 집중도 분석 데이터가 없습니다.
-										</article>
-									)}
+									{(() => {
+										const c = report.concentration_analysis;
+										if (!c) {
+											return (
+												<article className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">
+													종목 집중도 분석 데이터가 없습니다.
+												</article>
+											);
+										}
+										const top = c.top_stock_name ?? c.top_stock;
+										const ratio = c.top_stock_ratio ?? c.concentration_rate;
+										const text =
+											c.text ??
+											(top && ratio != null
+												? `전체 거래 중 ${top} 비중은 ${ratio.toFixed(1)}% 입니다.`
+												: null);
+										return (
+											<article className="rounded-2xl border border-slate-200 p-4">
+												<h3 className="text-sm font-semibold text-slate-900">
+													종목 집중도 분석
+												</h3>
+												<p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">
+													{text ?? "데이터가 없습니다."}
+												</p>
+											</article>
+										);
+									})()}
 
-									{report.volatility_analysis && (
-										<article className="rounded-2xl border border-slate-200 p-4">
-											<h3 className="text-sm font-semibold text-slate-900">
-												손익 변동성 분석
-											</h3>
-											<p className="mt-2 text-sm leading-6 text-slate-700">
-												평균 변동성은{" "}
-												{formatRatio(report.volatility_analysis.avg_volatility)}
-												입니다.
-												<br />
-												최대 변동일은{" "}
-												{report.volatility_analysis.max_volatility_day}
-												입니다.
-											</p>
-										</article>
-									)}
+									{(() => {
+										const v = report.volatility_analysis;
+										const rate = v?.volatility_rate ?? v?.avg_volatility;
+										const text =
+											v?.text ??
+											(rate != null
+												? `손익 변동폭은 ${rate.toFixed(1)}% 입니다.`
+												: null);
+										if (!text) return null;
+										return (
+											<article className="rounded-2xl border border-slate-200 p-4">
+												<h3 className="text-sm font-semibold text-slate-900">
+													손익 변동성 분석
+												</h3>
+												<p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">
+													{text}
+												</p>
+											</article>
+										);
+									})()}
 
-									{report.risk_observation && (
-										<article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-											<h3 className="text-sm font-semibold text-amber-900">
-												리스크 관찰 포인트
-											</h3>
-											<p className="mt-2 text-sm leading-6 text-amber-900">
-												{report.risk_observation.message}
-											</p>
-										</article>
-									)}
+									{(() => {
+										const r = report.risk_observation;
+										const text = r?.text ?? r?.message;
+										if (!text) return null;
+										return (
+											<article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+												<h3 className="text-sm font-semibold text-amber-900">
+													리스크 관찰 포인트
+												</h3>
+												<p className="mt-2 text-sm leading-6 text-amber-900 whitespace-pre-line">
+													{text}
+												</p>
+											</article>
+										);
+									})()}
 
 									<article className="rounded-2xl border border-slate-200 p-4">
 										<h3 className="text-sm font-semibold text-slate-900">

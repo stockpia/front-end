@@ -26,34 +26,56 @@ export type TradeDetailStockSummary = {
 	is_bottom?: boolean;
 };
 
+// 모든 분석 섹션 — 백엔드는 prose `text` 필드를 항상 제공. 개별 필드는 백엔드/
+// 프론트 명명이 달라 optional 로 처리 (구버전 호환).
+
 export type TradeDetailTradingTendency = {
-	buy_days: number;
-	sell_days: number;
-	avg_holding_days: number;
+	text?: string;
+	avg_holding_days?: number;
+	category?: string;
+	category_range?: string;
+	buy_days?: number;
+	sell_days?: number;
 };
 
 export type TradeDetailFrequencyChange = {
-	buy_frequency: string;
-	sell_frequency: string;
+	text?: string;
+	buy_frequency?: string;
+	sell_frequency?: string;
 };
 
 export type TradeDetailWaterDownPattern = {
-	count: number;
-	avg_loss_rate: number;
+	text?: string;
+	count?: number;
+	avg_loss_rate?: number;
 };
 
 export type TradeDetailConcentrationAnalysis = {
-	top_stock: string;
-	concentration_rate: number;
+	text?: string;
+	top_stock_name?: string;
+	top_stock_ratio?: number;
+	category?: string;
+	// 구버전 호환
+	top_stock?: string;
+	concentration_rate?: number;
 };
 
 export type TradeDetailVolatilityAnalysis = {
-	avg_volatility: number;
-	max_volatility_day: string;
+	text?: string;
+	volatility_rate?: number;
+	max_profit?: number;
+	min_profit?: number;
+	category?: string;
+	// 구버전 호환
+	avg_volatility?: number;
+	max_volatility_day?: string;
 };
 
 export type TradeDetailRiskObservation = {
-	message: string;
+	text?: string;
+	items?: string[];
+	// 구버전 호환
+	message?: string;
 };
 
 export type TradeDetailResponse = {
