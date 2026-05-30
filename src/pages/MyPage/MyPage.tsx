@@ -15,10 +15,10 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
-import { useAccountSession } from "@/hooks/useAccountSession";
 import { useUserDetailQuery } from "@/hooks/queries/useUserDetailQuery";
+import { useAccountSession } from "@/hooks/useAccountSession";
 import {
 	connectKisAccount,
 	connectTelegram,
@@ -28,10 +28,11 @@ import {
 	patchNotifySettings,
 	unlinkTelegram,
 } from "@/lib/api/accounts";
+import { clearAccountSession } from "@/lib/auth/session";
 import {
 	getInvestmentProfile,
-	subscribeInvestmentProfile,
 	type InvestmentProfile,
+	subscribeInvestmentProfile,
 } from "@/lib/investmentProfile";
 import type {
 	NotifySettings,
@@ -68,20 +69,25 @@ function toErrorMessage(error: unknown) {
 	if (isAxiosError<{ error?: string }>(error)) {
 		return error.response?.data?.error ?? error.message;
 	}
-	return error instanceof Error ? error.message : "처리 중 오류가 발생했습니다.";
+	return error instanceof Error
+		? error.message
+		: "처리 중 오류가 발생했습니다.";
 }
 
 export default function MyPage() {
 	const accountSession = useAccountSession();
 	const userId = accountSession?.userId ?? null;
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 
 	const [name, setName] = useState(accountSession?.name ?? "");
 	const [phone, setPhone] = useState(accountSession?.phone ?? "");
 	const [email, setEmail] = useState("mate@example.com");
 	const [investmentProfile, setInvestmentProfile] =
 		useState<InvestmentProfile | null>(() => getInvestmentProfile());
-	const [deepLink, setDeepLink] = useState<TelegramConnectResponse | null>(null);
+	const [deepLink, setDeepLink] = useState<TelegramConnectResponse | null>(
+		null,
+	);
 	const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
 	const [isKisUnlinkConfirmOpen, setIsKisUnlinkConfirmOpen] = useState(false);
 	const [kisFormOpen, setKisFormOpen] = useState(false);
@@ -215,6 +221,12 @@ export default function MyPage() {
 		queryClient.invalidateQueries({ queryKey: ["telegram-status", userId] });
 	};
 
+	const handleSignout = async () => {
+		clearAccountSession();
+		await queryClient.invalidateQueries();
+		navigate("/stocks");
+	};
+
 	const deepLinkExpiresLabel = useMemo(() => {
 		if (!deepLink) return null;
 		const date = new Date(deepLink.expires_at);
@@ -279,9 +291,7 @@ export default function MyPage() {
 							checked={briefingSettings[option.key]}
 							label={option.label}
 							description={option.description}
-							onChange={(checked) =>
-								handleBriefingChange(option.key, checked)
-							}
+							onChange={(checked) => handleBriefingChange(option.key, checked)}
 						/>
 					))}
 				</div>
@@ -383,6 +393,16 @@ export default function MyPage() {
 				</button>
 			</section>
 
+			<div className="flex justify-center pt-2">
+				<button
+					type="button"
+					onClick={() => void handleSignout()}
+					className="text-xs font-medium text-slate-400 underline underline-offset-2 transition hover:text-slate-600"
+				>
+					로그아웃
+				</button>
+			</div>
+
 			{/* ── Deep Link 모달 ── */}
 			<CommonModal
 				open={Boolean(deepLink)}
@@ -429,7 +449,9 @@ export default function MyPage() {
 				description={
 					"해제하면 보유 종목·미체결 주문·매매 기능이 비활성화돼요.\n시세 조회·뉴스·리포트는 그대로 사용할 수 있어요."
 				}
-				actionLabel={kisDisconnectMutation.isPending ? "해제 중..." : "연동 해제"}
+				actionLabel={
+					kisDisconnectMutation.isPending ? "해제 중..." : "연동 해제"
+				}
 				onAction={handleKisDisconnect}
 				secondaryActionLabel="취소"
 				onSecondaryAction={() => setIsKisUnlinkConfirmOpen(false)}
@@ -480,11 +502,7 @@ type KisLinkedPanelProps = {
 	onUnlink: () => void;
 };
 
-function KisLinkedPanel({
-	accountNumber,
-	env,
-	onUnlink,
-}: KisLinkedPanelProps) {
+function KisLinkedPanel({ accountNumber, env, onUnlink }: KisLinkedPanelProps) {
 	return (
 		<div className="mt-5">
 			<div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
@@ -502,7 +520,7 @@ function KisLinkedPanel({
 					<div className="flex justify-between">
 						<dt className="text-slate-500">환경</dt>
 						<dd className="font-semibold">
-							{env === "prod" ? "실전" : env === "vps" ? "모의" : env ?? "-"}
+							{env === "prod" ? "실전" : env === "vps" ? "모의" : (env ?? "-")}
 						</dd>
 					</div>
 				</dl>
@@ -554,10 +572,7 @@ function KisUnlinkedPanel({
 	errorMessage,
 }: KisUnlinkedPanelProps) {
 	const isSubmitDisabled =
-		!appKey.trim() ||
-		!appSecret.trim() ||
-		!accountNumber.trim() ||
-		isPending;
+		!appKey.trim() || !appSecret.trim() || !accountNumber.trim() || isPending;
 
 	if (!isFormOpen) {
 		return (
@@ -595,8 +610,8 @@ function KisUnlinkedPanel({
 	return (
 		<div className="mt-5 space-y-4">
 			<div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-xs text-sky-900">
-				한국투자증권 OpenAPI 의 App Key / App Secret / 계좌번호를 입력해
-				주세요. 저장 시 AES-256 으로 암호화돼 RDS 에 저장됩니다.
+				한국투자증권 OpenAPI 의 App Key / App Secret / 계좌번호를 입력해 주세요.
+				저장 시 AES-256 으로 암호화돼 RDS 에 저장됩니다.
 			</div>
 			<label className="block text-sm">
 				<span className="mb-1 block text-slate-600">App Key</span>
@@ -941,4 +956,3 @@ function TextField({ label, value, onChange, placeholder }: TextFieldProps) {
 		</label>
 	);
 }
-

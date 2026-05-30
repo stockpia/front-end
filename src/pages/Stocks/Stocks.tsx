@@ -12,9 +12,8 @@ import {
 } from "@/hooks/queries/useStocksListQueries";
 import { useStocksSearchQuery } from "@/hooks/queries/useStocksSearchQuery";
 import { useAccountSession } from "@/hooks/useAccountSession";
+import { useStockSearchSocket } from "@/hooks/useStockSearchSocket";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
-import { clearAccountSession } from "@/lib/auth/session";
-import { queryClient } from "@/lib/query/queryClient";
 import SearchBar from "@/pages/Stocks/components/SearchBar";
 import StocksList from "@/pages/Stocks/components/StocksList";
 import StocksTab, { type StockTab } from "@/pages/Stocks/components/StocksTab";
@@ -80,19 +79,14 @@ export default function Stocks() {
 		query: submittedSearchTerm,
 		enabled: activeTab === "all" && submittedSearchTerm.length > 0,
 	});
+	const stockSearchSocket = useStockSearchSocket(searchTerm);
 	const holdingsQuery = useHoldingsQuery({
 		userId,
 		sort: holdingsSort,
 		order: "desc",
 		enabled: activeTab === "holding" && isSignedIn,
 	});
-	const handleSignout = async () => {
-		clearAccountSession();
-		await queryClient.invalidateQueries();
-		navigate("/stocks");
-	};
-
-	const displayedStocks = useMemo<StockItem[]>(() => {
+	const baseDisplayedStocks = useMemo<StockItem[]>(() => {
 		if (activeTab === "holding") {
 			return holdingsQuery.holdings.map((stock) => ({
 				ticker: stock.ticker,
@@ -114,8 +108,35 @@ export default function Stocks() {
 		[submittedSearchTerm],
 	);
 
-	const filteredStocks = useMemo<StockItem[]>(() => {
+	const searchedStocks = useMemo<StockItem[]>(() => {
 		if (!normalizedSearchTerm) {
+			return [];
+		}
+
+		return stockSearchSocket.results.map((result) => {
+			const matchedStock = baseDisplayedStocks.find(
+				(stock) => stock.ticker === result.symbol,
+			);
+
+			return {
+				ticker: result.symbol,
+				name: result.name,
+				current_price: matchedStock?.current_price ?? 0,
+				change_rate: matchedStock?.change_rate ?? 0,
+				volume: matchedStock?.volume ?? 0,
+				quantity: matchedStock?.quantity,
+				eval_amount: matchedStock?.eval_amount,
+				profit_rate: matchedStock?.profit_rate,
+			};
+		});
+	}, [baseDisplayedStocks, normalizedSearchTerm, stockSearchSocket.results]);
+
+	const displayedStocks = normalizedSearchTerm
+		? searchedStocks
+		: baseDisplayedStocks;
+
+	const filteredStocks = useMemo<StockItem[]>(() => {
+		if (!normalizedSearchTerm || searchedStocks.length > 0) {
 			return displayedStocks;
 		}
 
@@ -148,6 +169,7 @@ export default function Stocks() {
 		normalizedSearchTerm,
 		activeTab,
 		stocksSearchQuery.stocks,
+		searchedStocks.length,
 	]);
 
 	const sortedStocks = useMemo(() => {
@@ -176,12 +198,11 @@ export default function Stocks() {
 		}
 	}, [activeTab, filteredStocks, sortBy]);
 
-	const isLoading =
-		activeTab === "holding"
+	const isLoading = normalizedSearchTerm
+		? false
+		: activeTab === "holding"
 			? holdingsQuery.isLoading
-			: submittedSearchTerm.length > 0
-				? stocksSearchQuery.isLoading
-				: stocksListQuery.isLoading;
+			: stocksListQuery.isLoading;
 	const error =
 		activeTab === "holding"
 			? isSignedIn
@@ -248,9 +269,9 @@ export default function Stocks() {
 
 	return (
 		<div className="space-y-8 py-8">
-			<section className="rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
+			<section className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
 				<div className="flex items-center justify-between gap-4">
-					<div>
+					<div className="min-w-0">
 						<p className="text-sm font-semibold text-slate-900">
 							{isSignedIn
 								? `${accountSession?.name}님 계좌가 연동되어 있습니다.`
@@ -262,23 +283,19 @@ export default function Stocks() {
 								: "한국투자증권 계좌 연동 후 맞춤 데이터를 확인하세요."}
 						</p>
 					</div>
-					<button
-						type="button"
-						onClick={() => {
-							if (isSignedIn) {
-								void handleSignout();
-								return;
-							}
-							navigate("/login");
-						}}
-						className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
-					>
-						{isSignedIn ? "로그아웃" : "로그인"}
-					</button>
+					{!isSignedIn && (
+						<button
+							type="button"
+							onClick={() => navigate("/login")}
+							className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+						>
+							로그인
+						</button>
+					)}
 				</div>
 			</section>
 
-			<section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
+			<section className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] sm:p-5">
 				<SearchBar
 					value={searchTerm}
 					onChange={(value) => {
@@ -373,7 +390,7 @@ export default function Stocks() {
 			<button
 				type="button"
 				onClick={() => navigate(`/trades/${userId ?? "demo_user"}`)}
-				className="w-full rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] transition hover:border-slate-300 hover:shadow-[0_24px_70px_-42px_rgba(15,23,42,0.7)]"
+				className="w-full rounded-[24px] border border-slate-200 bg-white p-4 text-left shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] transition hover:border-slate-300 hover:shadow-[0_24px_70px_-42px_rgba(15,23,42,0.7)]"
 			>
 				<div className="flex items-start justify-between gap-4">
 					<div>

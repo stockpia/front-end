@@ -11,7 +11,7 @@ export default function SearchBar({
 }: SearchBarProps) {
 	return (
 		<form
-			className="rounded-xl flex-1 flex border border-slate-200 bg-slate-50 px-4 py-3"
+			className="flex flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3"
 			onSubmit={(event) => {
 				event.preventDefault();
 				onSubmit();
