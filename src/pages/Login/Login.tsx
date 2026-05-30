@@ -66,7 +66,7 @@ export default function Login() {
 	};
 
 	return (
-		<div className="mx-auto flex min-h-screen max-w-2xl flex-col px-6 py-10">
+		<div className="mx-auto flex min-h-screen max-w-2xl flex-col px-3 py-10 sm:px-6">
 			<div className="sticky top-4 z-20 rounded-2xl bg-background/95 pb-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
 				<div className="mb-4 inline-flex rounded-2xl border border-slate-200 bg-white p-1">
 					<button

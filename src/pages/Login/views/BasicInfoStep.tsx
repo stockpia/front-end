@@ -43,13 +43,10 @@ export default function BasicInfoStep({
 
 	// phone 은 선택 — 비워둬도 가입 가능
 	const isNextDisabled =
-		!loginId.trim() ||
-		!name.trim() ||
-		!birthDate.trim() ||
-		!password.trim();
+		!loginId.trim() || !name.trim() || !birthDate.trim() || !password.trim();
 
 	return (
-		<section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+		<section className="w-full rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)] sm:p-6">
 			<div className="mt-5 space-y-8 text-left">
 				<label className="block">
 					<span className="mb-1 block text-sm">아이디</span>

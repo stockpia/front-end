@@ -1,13 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { MessageCircle, Info } from "lucide-react";
+import { Info, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
-import {
-	patchNotifySettings,
-	signupAccount,
-} from "@/lib/api/accounts";
+import { patchNotifySettings, signupAccount } from "@/lib/api/accounts";
 import { setAccountSession } from "@/lib/auth/session";
 
 type BriefingSetting = "marketBriefing" | "weekly";
@@ -81,7 +78,7 @@ export default function NotificationInfoStep({
 				loginId: response.login_id,
 				name: variables.name,
 				phone: variables.phone || "",
-				accountNumber: "미연동",  // KIS 연동은 마이페이지에서 별도
+				accountNumber: "미연동", // KIS 연동은 마이페이지에서 별도
 			});
 
 			// 사용자가 토글한 알림 설정을 가입 직후 한 번에 반영
@@ -127,7 +124,7 @@ export default function NotificationInfoStep({
 	};
 
 	return (
-		<section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+		<section className="w-full rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)] sm:p-6">
 			<div className="flex items-center gap-3">
 				<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
 					<MessageCircle className="h-5 w-5" />
@@ -137,7 +134,7 @@ export default function NotificationInfoStep({
 
 			<div className="mt-6 space-y-6 text-left">
 				{/* Deep Link 모델 안내 — 사용자는 토큰을 입력하지 않음 */}
-				<div className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+				<div className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-3 py-3 sm:px-4">
 					<Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
 					<div className="min-w-0 text-sm leading-6 text-sky-900">
 						<p className="font-semibold">
@@ -226,7 +223,7 @@ function SquareCheckBox({
 }: SquareCheckBoxProps) {
 	return (
 		<label
-			className={`flex cursor-pointer items-start justify-between gap-4 rounded-2xl border px-4 py-3 transition ${
+			className={`flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-3 py-3 transition sm:gap-4 sm:px-4 ${
 				checked
 					? "border-slate-900 bg-slate-50"
 					: "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"

@@ -77,7 +77,7 @@ export default function SigninStep() {
 	const isTestLoginPending = testAccountMutation.isPending;
 
 	return (
-		<section className="w-full rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
+		<section className="w-full rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)] sm:p-6">
 			<h2 className="text-xl font-semibold">기존 사용자 로그인</h2>
 			<div className="mt-5 space-y-8 text-left">
 				<label className="block">
@@ -141,7 +141,7 @@ export default function SigninStep() {
 				</button>
 			</div>
 
-			<div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-left">
+			<div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-left sm:p-5">
 				<div className="flex items-start gap-3">
 					<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
 						<FlaskConical className="h-5 w-5" />
