@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTradeDetailQuery } from "@/hooks/queries/useTradeDetailQuery";
 import { useAccountSession } from "@/hooks/useAccountSession";
@@ -14,12 +14,12 @@ export default function TradeDetail() {
 	const [selectedPeriod, setSelectedPeriod] = useState<TradePeriod>("1m");
 	const [demoMode, setDemoMode] = useState(false);
 
-	const selectedScope = useMemo(
-		() =>
-			TRADE_SCOPE_OPTIONS.find((scope) => scope.id === selectedScopeId) ??
-			TRADE_SCOPE_OPTIONS[0],
-		[selectedScopeId],
-	);
+	// 종목 picker 옵션을 매번 응답에서 다시 만들면 단일 종목 선택 시 옵션이
+	// 1개로 줄어드니, scope=all 응답이 도착하면 그 시점의 by_stock 을 캐시해서
+	// 단일 종목 선택 후에도 picker 가 전체 종목을 계속 표시하도록 함.
+	const [cachedScopeOptions, setCachedScopeOptions] = useState<
+		{ id: string; label: string; ticker?: string }[]
+	>([]);
 
 	const selectedSymbol = selectedScopeId === "all" ? "ALL" : selectedScopeId;
 
@@ -69,6 +69,30 @@ export default function TradeDetail() {
 		() => reportData ?? fallbackReport,
 		[fallbackReport, reportData],
 	);
+
+	// scope === all 응답 도착할 때마다 picker 옵션을 캐시
+	useEffect(() => {
+		if (selectedScopeId !== "all") return;
+		const list = reportData?.by_stock_summary ?? [];
+		if (list.length === 0) return;
+		const opts = [
+			{ id: "all", label: "전체" },
+			...list
+				.map((s) => ({
+					id: s.ticker ?? s.symbol ?? "",
+					label: s.name || (s.ticker ?? s.symbol ?? ""),
+					ticker: s.ticker ?? s.symbol,
+				}))
+				.filter((o) => o.id),
+		];
+		setCachedScopeOptions(opts);
+	}, [reportData?.by_stock_summary, selectedScopeId]);
+
+	const scopeOptions =
+		cachedScopeOptions.length > 0 ? cachedScopeOptions : TRADE_SCOPE_OPTIONS;
+	const selectedScope =
+		scopeOptions.find((scope) => scope.id === selectedScopeId) ??
+		scopeOptions[0];
 
 	const selectedPeriodLabel = useMemo(
 		() =>
@@ -159,9 +183,11 @@ export default function TradeDetail() {
 				<>
 					<div className="grid grid-cols-1 gap-4">
 						<section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
-							<p className="text-xs font-semibold text-slate-500">종목 선택</p>
+							<p className="text-xs font-semibold text-slate-500">
+								종목 선택 <span className="text-slate-400">({scopeOptions.length - 1} 종목)</span>
+							</p>
 							<div className="mt-3 flex flex-wrap gap-2">
-								{TRADE_SCOPE_OPTIONS.map((scope) => {
+								{scopeOptions.map((scope) => {
 									const active = scope.id === selectedScopeId;
 									return (
 										<button
@@ -180,6 +206,76 @@ export default function TradeDetail() {
 								})}
 							</div>
 						</section>
+
+						{(report.transactions?.length ?? 0) > 0 && (
+							<section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
+								<div className="flex items-center justify-between">
+									<p className="text-xs font-semibold text-slate-500">
+										개별 거래 내역
+									</p>
+									<p className="text-xs text-slate-500">
+										{selectedScope.label} · 최근 {selectedPeriodLabel} ·{" "}
+										{report.transactions?.length ?? 0}건
+									</p>
+								</div>
+								<div className="mt-3 max-h-[320px] overflow-auto rounded-2xl border border-slate-200">
+									<table className="min-w-full text-sm">
+										<thead className="bg-slate-100 text-xs text-slate-600">
+											<tr>
+												<th className="px-3 py-2 text-left">날짜</th>
+												<th className="px-3 py-2 text-left">종목</th>
+												<th className="px-3 py-2 text-center">구분</th>
+												<th className="px-3 py-2 text-right">수량</th>
+												<th className="px-3 py-2 text-right">단가</th>
+												<th className="px-3 py-2 text-right">금액</th>
+											</tr>
+										</thead>
+										<tbody>
+											{report.transactions?.map((tx, i) => {
+												const d = tx.date ?? "";
+												const dateLabel =
+													d.length === 8
+														? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
+														: d;
+												return (
+													<tr
+														key={`${tx.date}-${tx.ticker}-${tx.side}-${i}`}
+														className="border-t border-slate-100"
+													>
+														<td className="whitespace-nowrap px-3 py-2 text-slate-700">
+															{dateLabel}
+														</td>
+														<td className="whitespace-nowrap px-3 py-2 text-slate-800">
+															{tx.name} ({tx.ticker})
+														</td>
+														<td className="whitespace-nowrap px-3 py-2 text-center">
+															<span
+																className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
+																	tx.side === "buy"
+																		? "bg-rose-50 text-rose-700"
+																		: "bg-emerald-50 text-emerald-700"
+																}`}
+															>
+																{tx.side_label ?? (tx.side === "buy" ? "매수" : "매도")}
+															</span>
+														</td>
+														<td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
+															{tx.quantity?.toLocaleString("ko-KR")}주
+														</td>
+														<td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
+															{tx.price?.toLocaleString("ko-KR")}원
+														</td>
+														<td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-900">
+															{tx.amount?.toLocaleString("ko-KR")}원
+														</td>
+													</tr>
+												);
+											})}
+										</tbody>
+									</table>
+								</div>
+							</section>
+						)}
 
 						<section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
 							<div className="flex items-center justify-between">

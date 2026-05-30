@@ -78,12 +78,24 @@ export type TradeDetailRiskObservation = {
 	message?: string;
 };
 
+export type TradeDetailTransaction = {
+	date: string;
+	ticker: string;
+	name: string;
+	side: "buy" | "sell";
+	side_label: string;
+	quantity: number;
+	price: number;
+	amount: number;
+};
+
 export type TradeDetailResponse = {
 	scope: string;
 	period: TradePeriod;
 	actual_period_days: number;
 	summary_metrics: TradeDetailSummaryMetrics;
 	by_stock_summary: TradeDetailStockSummary[];
+	transactions?: TradeDetailTransaction[];
 	trading_tendency: TradeDetailTradingTendency | null;
 	frequency_change: TradeDetailFrequencyChange | null;
 	water_down_pattern: TradeDetailWaterDownPattern | null;
