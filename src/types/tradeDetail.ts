@@ -13,12 +13,17 @@ export type TradeDetailSummaryMetrics = {
 };
 
 export type TradeDetailStockSummary = {
-	symbol: string;
+	symbol?: string;  // 구버전 호환 — 백엔드는 ticker 사용
+	ticker?: string;
 	name: string;
 	buy_amount: number;
 	sell_amount: number;
+	buy_qty?: number;
+	sell_qty?: number;
 	realized_profit: number;
 	profit_rate: number;
+	is_top?: boolean;
+	is_bottom?: boolean;
 };
 
 export type TradeDetailTradingTendency = {
@@ -63,7 +68,19 @@ export type TradeDetailResponse = {
 	concentration_analysis: TradeDetailConcentrationAnalysis | null;
 	volatility_analysis: TradeDetailVolatilityAnalysis | null;
 	risk_observation: TradeDetailRiskObservation | null;
-	narrative: string | null;
+	// 백엔드는 dict 형태로 반환 ({flow, pattern, risk_point, observation}) — 구버전
+	// 호환 위해 string 도 허용.
+	narrative:
+		| string
+		| {
+				flow?: string;
+				pattern?: string;
+				risk_point?: string;
+				observation?: string;
+		  }
+		| null;
 	period_insufficient: boolean;
 	period_insufficient_message: string | null;
+	demo_mode?: boolean;
+	demo_note?: string;
 };

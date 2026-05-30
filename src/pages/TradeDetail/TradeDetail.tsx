@@ -202,13 +202,15 @@ export default function TradeDetail() {
 										</tr>
 									</thead>
 									<tbody>
-										{report.by_stock_summary.map((stock) => (
+										{report.by_stock_summary.map((stock) => {
+											const sid = stock.ticker ?? stock.symbol ?? "";
+											return (
 											<tr
-												key={stock.symbol}
+												key={sid}
 												className="border-t border-slate-100"
 											>
 												<td className="whitespace-nowrap px-3 py-2 text-slate-800">
-													{stock.name} ({stock.symbol})
+													{stock.name} ({sid})
 												</td>
 												<td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
 													{formatCurrency(stock.buy_amount)}
@@ -235,7 +237,8 @@ export default function TradeDetail() {
 													{formatRatio(stock.profit_rate)}
 												</td>
 											</tr>
-										))}
+										);
+									})}
 										{report.by_stock_summary.length === 0 && (
 											<tr>
 												<td
@@ -405,20 +408,56 @@ export default function TradeDetail() {
 										<h3 className="text-sm font-semibold text-slate-900">
 											종목/전체 요약
 										</h3>
-										{report.narrative ? (
-											<p className="mt-2 text-sm text-slate-700">
-												{report.narrative}
-											</p>
-										) : (
-											<p className="mt-2 text-sm text-slate-500">
-												종목/전체 요약 데이터가 없습니다.
-											</p>
-										)}
+										{(() => {
+											const n = report.narrative;
+											if (!n) {
+												return (
+													<p className="mt-2 text-sm text-slate-500">
+														종목/전체 요약 데이터가 없습니다.
+													</p>
+												);
+											}
+											if (typeof n === "string") {
+												return (
+													<p className="mt-2 text-sm text-slate-700 whitespace-pre-line">
+														{n}
+													</p>
+												);
+											}
+											const sections: { label: string; text?: string }[] = [
+												{ label: "흐름", text: n.flow },
+												{ label: "패턴", text: n.pattern },
+												{ label: "리스크", text: n.risk_point },
+												{ label: "관찰", text: n.observation },
+											].filter((s) => s.text);
+											if (sections.length === 0) {
+												return (
+													<p className="mt-2 text-sm text-slate-500">
+														종목/전체 요약 데이터가 없습니다.
+													</p>
+												);
+											}
+											return (
+												<div className="mt-2 space-y-2 text-sm text-slate-700">
+													{sections.map((s) => (
+														<p
+															key={s.label}
+															className="whitespace-pre-line"
+														>
+															<span className="font-semibold text-slate-900">
+																{s.label}.
+															</span>{" "}
+															{s.text}
+														</p>
+													))}
+												</div>
+											);
+										})()}
 										{report.by_stock_summary.length > 0 && (
 											<div className="mt-3 grid gap-2 sm:grid-cols-2">
 												{report.by_stock_summary.map((stock, index) => (
 													<div
-														key={`${stock.symbol}-${index}`}
+														key={`${stock.ticker ?? stock.symbol ?? "x"}-${index}`}
 														className={`rounded-xl p-3 text-sm ${
 															stock.realized_profit >= 0
 																? "bg-emerald-50 text-emerald-800"
