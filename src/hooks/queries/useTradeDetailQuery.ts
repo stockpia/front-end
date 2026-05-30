@@ -7,6 +7,7 @@ type UseTradeDetailQueryParams = {
 	userId?: string;
 	period: TradePeriod;
 	enabled?: boolean;
+	demo?: boolean;
 };
 
 function toErrorMessage(error: unknown) {
@@ -20,12 +21,14 @@ export function tradeDetailQueryKey(
 	symbol: string | null | undefined,
 	userId: string | undefined,
 	period: TradePeriod,
+	demo: boolean = false,
 ) {
 	return [
 		"trade-detail",
 		symbol ?? null,
 		userId ?? "default_user",
 		period,
+		demo ? "demo" : "live",
 	] as const;
 }
 
@@ -34,12 +37,17 @@ export function useTradeDetailQuery({
 	userId = "default_user",
 	period,
 	enabled = true,
+	demo = false,
 }: UseTradeDetailQueryParams) {
 	const query = useQuery({
-		queryKey: tradeDetailQueryKey(symbol, userId, period),
+		queryKey: tradeDetailQueryKey(symbol, userId, period, demo),
 		enabled: Boolean(symbol) && enabled,
 		queryFn: ({ signal }) =>
-			fetchTradeDetail(symbol as string, { user_id: userId, period }, signal),
+			fetchTradeDetail(
+				symbol as string,
+				{ user_id: userId, period, demo },
+				signal,
+			),
 	});
 
 	return {

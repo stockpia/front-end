@@ -12,6 +12,7 @@ export default function TradeDetail() {
 	const isSignedIn = Boolean(accountSession?.userId);
 	const [selectedScopeId, setSelectedScopeId] = useState<string>("all");
 	const [selectedPeriod, setSelectedPeriod] = useState<TradePeriod>("1m");
+	const [demoMode, setDemoMode] = useState(false);
 
 	const selectedScope = useMemo(
 		() =>
@@ -61,6 +62,7 @@ export default function TradeDetail() {
 		userId,
 		period: selectedPeriod,
 		enabled: isSignedIn,
+		demo: demoMode,
 	});
 
 	const report = useMemo(
@@ -85,10 +87,49 @@ export default function TradeDetail() {
 	return (
 		<div className="space-y-5 py-6">
 			<header className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
-				<h1 className="mt-1 text-lg font-semibold text-slate-900">
-					거래내역 상세 리포트
-				</h1>
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<h1 className="mt-1 text-lg font-semibold text-slate-900">
+						거래내역 상세 리포트
+						{demoMode && (
+							<span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 align-middle">
+								🎨 데모
+							</span>
+						)}
+					</h1>
+					<label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+						<input
+							type="checkbox"
+							checked={demoMode}
+							onChange={(e) => setDemoMode(e.target.checked)}
+							className="h-4 w-4 rounded border-slate-300"
+						/>
+						<span>데모 데이터 보기</span>
+					</label>
+				</div>
+				{demoMode && (
+					<p className="mt-2 text-xs text-amber-700">
+						보유 종목 기반 가상 거래로 시연된 응답입니다 (실 거래내역 아님).
+					</p>
+				)}
 			</header>
+
+			{isSignedIn && !demoMode && hasNoTradesInPeriod && !isLoading && (
+				<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
+					<p className="text-sm text-slate-700">
+						선택하신 기간 동안의 거래내역이 없어요.
+					</p>
+					<p className="mt-1 text-xs text-slate-500">
+						모의 계좌라 실 매매 기록이 없거나, 장이 닫혀있는 동안 아직 거래가 발생하지 않았어요.
+					</p>
+					<button
+						type="button"
+						onClick={() => setDemoMode(true)}
+						className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+					>
+						🎨 데모 데이터로 리포트 보기
+					</button>
+				</section>
+			)}
 
 			{!isSignedIn ? (
 				<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
