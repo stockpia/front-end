@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { signinAccount } from "@/lib/api/accounts";
 import { setAccountSession } from "@/lib/auth/session";
 
-const DEMO_ACCOUNT_PHONE = "01099991234";
+const DEMO_ACCOUNT_LOGIN_ID = "test";
 const DEMO_ACCOUNT_PASSWORD = "Test1234!";
 
 function toErrorMessage(error: unknown) {
@@ -30,7 +30,7 @@ function toErrorMessage(error: unknown) {
 
 export default function SigninStep() {
 	const navigate = useNavigate();
-	const [phone, setPhone] = useState("");
+	const [loginId, setLoginId] = useState("");
 	const [password, setPassword] = useState("");
 	const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,13 +38,13 @@ export default function SigninStep() {
 
 	const signinMutation = useMutation({
 		mutationFn: signinAccount,
-		onSuccess: (response, variables) => {
+		onSuccess: (response) => {
 			setErrorMessage(null);
 			setAccountSession({
 				userId: response.user_id,
+				loginId: response.login_id,
 				name: response.name,
-				phone: variables.phone,
-				accountNumber: response.account_number ?? "KIS 테스트 계좌",
+				accountNumber: response.account_number ?? "미연동",
 			});
 			navigate("/stocks");
 		},
@@ -55,14 +55,14 @@ export default function SigninStep() {
 
 	const testAccountMutation = useMutation({
 		mutationFn: signinAccount,
-		onSuccess: (response, variables) => {
+		onSuccess: (response) => {
 			setErrorMessage(null);
 			setTestLoginMessage(response.message);
 			setAccountSession({
 				userId: response.user_id,
+				loginId: response.login_id,
 				name: response.name,
-				phone: variables.phone,
-				accountNumber: response.account_number ?? "KIS 테스트 계좌",
+				accountNumber: response.account_number ?? "미연동",
 			});
 			navigate("/stocks");
 		},
@@ -73,7 +73,7 @@ export default function SigninStep() {
 	});
 
 	const isSubmitDisabled =
-		!phone.trim() || !password.trim() || signinMutation.isPending;
+		!loginId.trim() || !password.trim() || signinMutation.isPending;
 	const isTestLoginPending = testAccountMutation.isPending;
 
 	return (
@@ -81,13 +81,14 @@ export default function SigninStep() {
 			<h2 className="text-xl font-semibold">기존 사용자 로그인</h2>
 			<div className="mt-5 space-y-8 text-left">
 				<label className="block">
-					<span className="mb-1 block text-sm">전화번호</span>
+					<span className="mb-1 block text-sm">아이디</span>
 					<input
 						className="w-full rounded-md border px-3 py-2"
-						type="tel"
-						placeholder="010-1234-5678"
-						value={phone}
-						onChange={(event) => setPhone(event.target.value)}
+						type="text"
+						placeholder="아이디"
+						autoComplete="username"
+						value={loginId}
+						onChange={(event) => setLoginId(event.target.value)}
 					/>
 				</label>
 				<label className="block">
@@ -129,7 +130,7 @@ export default function SigninStep() {
 					type="button"
 					onClick={() => {
 						signinMutation.mutate({
-							phone: phone.trim(),
+							login_id: loginId.trim(),
 							password: password.trim(),
 						});
 					}}
@@ -172,7 +173,7 @@ export default function SigninStep() {
 					type="button"
 					onClick={() => {
 						testAccountMutation.mutate({
-							phone: DEMO_ACCOUNT_PHONE,
+							login_id: DEMO_ACCOUNT_LOGIN_ID,
 							password: DEMO_ACCOUNT_PASSWORD,
 						});
 					}}
