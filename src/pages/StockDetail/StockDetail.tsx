@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChartPanel, {
+	type ChartMinuteInterval,
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
@@ -19,6 +20,7 @@ export default function StockDetail() {
 	const [searchParams] = useSearchParams();
 	const [range, setRange] = useState<ChartRange>("1d");
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
+	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(10);
 	const [activeInsightTab, setActiveInsightTab] =
 		useState<StockInsightTab>("report");
 
@@ -35,6 +37,7 @@ export default function StockDetail() {
 		symbol: stockId,
 		range,
 		type: chartType,
+		interval: range === "1d" ? minuteInterval : undefined,
 	});
 	const stockReportQuery = useStockReportQuery({
 		symbol: stockId,
@@ -83,6 +86,8 @@ export default function StockDetail() {
 				onRangeChange={setRange}
 				type={chartType}
 				onTypeChange={setChartType}
+				minuteInterval={minuteInterval}
+				onMinuteIntervalChange={setMinuteInterval}
 				loading={chartQuery.isLoading}
 				error={chartQuery.errorMessage}
 				plotlyJson={chartQuery.plotlyJson}
