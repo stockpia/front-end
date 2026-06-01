@@ -367,8 +367,6 @@ export default function Stocks() {
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
-					tradeTicker={realtimeSelectedStock.ticker}
-					tradeName={realtimeSelectedStock.name}
 					footer={
 						<StockTickerSummary
 							ticker={stockTickerSocket.ticker}

@@ -2,7 +2,6 @@ import { Info } from "lucide-react";
 import Plotly from "plotly.js-dist-min";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
-import { useNavigate } from "react-router-dom";
 import CommonModal from "@/components/CommonModal";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import normalizePlotly, {
@@ -97,8 +96,6 @@ export type ChartPanelProps = {
 	loading?: boolean;
 	error?: string | null;
 	plotlyJson?: unknown | null;
-	tradeTicker?: string;
-	tradeName?: string;
 	footer?: ReactNode;
 };
 
@@ -113,18 +110,12 @@ export default function ChartPanel({
 	loading = false,
 	error = null,
 	plotlyJson = null,
-	tradeTicker,
-	tradeName,
 	footer,
 }: ChartPanelProps) {
-	const navigate = useNavigate();
 	const availableRangeOptions = useMemo(
 		() => RANGE_OPTIONS_BY_TYPE[type],
 		[type],
 	);
-	const encodedTradeName = tradeName ? encodeURIComponent(tradeName) : "";
-	const tradeQuery = encodedTradeName ? `?name=${encodedTradeName}` : "";
-	const tradeDisabled = !tradeTicker;
 
 	useEffect(() => {
 		if (availableRangeOptions.some((option) => option.id === range)) {
@@ -200,38 +191,6 @@ export default function ChartPanel({
 					chartType={type}
 				/>
 			</div>
-
-			<section className="mt-6 grid grid-cols-2 gap-4">
-				<button
-					type="button"
-					onClick={() =>
-						navigate(`/stocks/${tradeTicker}/sell${tradeQuery}`)
-					}
-					disabled={tradeDisabled}
-					className={`rounded-[28px] px-5 py-5 text-center text-base font-semibold transition ${
-						tradeDisabled
-							? "border border-slate-200 bg-slate-100 text-slate-400"
-							: "border border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100/80"
-					}`}
-				>
-					판매하기
-				</button>
-
-				<button
-					type="button"
-					onClick={() =>
-						navigate(`/stocks/${tradeTicker}/buy${tradeQuery}`)
-					}
-					disabled={tradeDisabled}
-					className={`rounded-[28px] px-5 py-5 text-center text-base font-semibold transition ${
-						tradeDisabled
-							? "border border-slate-200 bg-slate-100 text-slate-400"
-							: "border border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100/80"
-					}`}
-				>
-					구매하기
-				</button>
-			</section>
 
 			{footer ? <div className="mt-6">{footer}</div> : null}
 		</section>
