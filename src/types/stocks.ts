@@ -46,6 +46,9 @@ export type StockChartResponse = {
 		ma?: number[];
 		generatedAt?: string;
 	};
+	// range='1d' 일 때만 백엔드가 채움
+	market_status?: "open" | "closed";
+	market_close_kst?: string; // ISO 8601, 정규장 마감 시각 (15:30 KST)
 };
 
 export type StockOrderBookItem = {

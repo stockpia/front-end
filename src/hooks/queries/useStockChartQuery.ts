@@ -51,5 +51,7 @@ export function useStockChartQuery({
 		...query,
 		errorMessage,
 		plotlyJson: query.data?.plotly ?? null,
+		marketStatus: query.data?.market_status,
+		marketCloseKst: query.data?.market_close_kst,
 	};
 }
