@@ -9,6 +9,10 @@ import StockTickerSummary from "@/components/StockTickerSummary";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
+import {
+	getInvestmentProfile,
+	subscribeInvestmentProfile,
+} from "@/lib/investmentProfile";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
 import StockReportSection from "@/pages/StockDetail/views/StockReportSection";
 
@@ -23,6 +27,16 @@ export default function StockDetail() {
 	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(10);
 	const [activeInsightTab, setActiveInsightTab] =
 		useState<StockInsightTab>("report");
+
+	// 사용자 투자성향 (localStorage). 미설정이면 백엔드에서 default 3 (위험중립형) 사용.
+	const [profileLevel, setProfileLevel] = useState<
+		1 | 2 | 3 | 4 | 5 | undefined
+	>(() => getInvestmentProfile()?.result.level);
+	useEffect(() => {
+		return subscribeInvestmentProfile(() => {
+			setProfileLevel(getInvestmentProfile()?.result.level);
+		});
+	}, []);
 
 	const symbolLabel = useMemo(() => {
 		const nameParam = searchParams.get("name");
@@ -42,6 +56,7 @@ export default function StockDetail() {
 	const stockReportQuery = useStockReportQuery({
 		symbol: stockId,
 		enabled: activeInsightTab === "report",
+		profileLevel,
 	});
 	const stockTickerSocket = useStockTickerSocket(stockId);
 

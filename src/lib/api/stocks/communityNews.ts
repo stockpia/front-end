@@ -51,10 +51,19 @@ export async function fetchStockCommunityLatest(
 	return data;
 }
 
-export async function fetchStockReport(symbol: string, signal?: AbortSignal) {
+export async function fetchStockReport(
+	symbol: string,
+	params: { profile_level?: 1 | 2 | 3 | 4 | 5 } = {},
+	signal?: AbortSignal,
+) {
+	const queryParams: Record<string, string> = {};
+	if (params.profile_level) {
+		queryParams.profile_level = String(params.profile_level);
+	}
 	const { data } = await api.get<StockReportResponse>(
 		`/web/stocks/${symbol}/report`,
 		{
+			params: queryParams,
 			signal,
 		},
 	);
