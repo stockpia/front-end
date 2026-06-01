@@ -93,6 +93,7 @@ export type ChartPanelProps = {
 	onTypeChange: (type: ChartType) => void;
 	minuteInterval?: ChartMinuteInterval;
 	onMinuteIntervalChange?: (interval: ChartMinuteInterval) => void;
+	marketStatus?: "open" | "closed";
 	loading?: boolean;
 	error?: string | null;
 	plotlyJson?: unknown | null;
@@ -107,6 +108,7 @@ export default function ChartPanel({
 	onTypeChange,
 	minuteInterval,
 	onMinuteIntervalChange,
+	marketStatus,
 	loading = false,
 	error = null,
 	plotlyJson = null,
@@ -145,7 +147,21 @@ export default function ChartPanel({
 						<h2 className="text-2xl font-semibold text-slate-900">
 							{symbol} 차트
 						</h2>
-						<p className="text-sm text-slate-500">{rangeLabel} 기준</p>
+						<p className="text-sm text-slate-500 flex items-center gap-2">
+							<span>{rangeLabel} 기준</span>
+							{range === "1d" && marketStatus === "closed" && (
+								<span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+									<span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+									장 마감 (15:30 KST 기준)
+								</span>
+							)}
+							{range === "1d" && marketStatus === "open" && (
+								<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+									<span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+									실시간
+								</span>
+							)}
+						</p>
 					</div>
 				</div>
 				<div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
