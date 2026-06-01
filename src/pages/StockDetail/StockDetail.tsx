@@ -91,12 +91,6 @@ export default function StockDetail() {
 				loading={chartQuery.isLoading}
 				error={chartQuery.errorMessage}
 				plotlyJson={chartQuery.plotlyJson}
-				tradeTicker={stockId}
-				tradeName={
-					searchParams.get("name")
-						? decodeURIComponent(searchParams.get("name") as string)
-						: stockId
-				}
 				footer={
 					<StockTickerSummary
 						ticker={stockTickerSocket.ticker}
