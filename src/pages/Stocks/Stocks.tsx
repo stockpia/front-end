@@ -5,6 +5,7 @@ import ChartPanel, {
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
+import KisStatusBanner from "@/components/KisStatusBanner";
 import StockTickerSummary from "@/components/StockTickerSummary";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import {
@@ -272,31 +273,7 @@ export default function Stocks() {
 
 	return (
 		<div className="space-y-8 py-8">
-			<section className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)]">
-				<div className="flex items-center justify-between gap-4">
-					<div className="min-w-0">
-						<p className="text-sm font-semibold text-slate-900">
-							{isSignedIn
-								? `${accountSession?.name}님 계좌가 연동되어 있습니다.`
-								: "계좌를 연동하면 보유 종목을 불러올 수 있습니다."}
-						</p>
-						<p className="mt-1 text-sm text-slate-500">
-							{isSignedIn
-								? accountSession?.accountNumber
-								: "한국투자증권 계좌 연동 후 맞춤 데이터를 확인하세요."}
-						</p>
-					</div>
-					{!isSignedIn && (
-						<button
-							type="button"
-							onClick={() => navigate("/login")}
-							className="shrink-0 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
-						>
-							로그인
-						</button>
-					)}
-				</div>
-			</section>
+			<KisStatusBanner />
 
 			<section className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.6)] sm:p-5">
 				<SearchBar

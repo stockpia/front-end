@@ -59,7 +59,7 @@ export default function BottomNavigation() {
 				}
 			: {
 					title: "로그인 후 거래 내역 확인",
-					description: "계좌 연동 후\n거래 내역과 리포트를 볼 수 있어요.",
+					description: "로그인 + KIS 연동 후\n내 거래 내역 리포트를 볼 수 있어요.",
 					icon: <BriefcaseBusiness className="h-7 w-7 text-slate-900" />,
 				};
 

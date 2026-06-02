@@ -130,7 +130,7 @@ export default function Home() {
 								to="/login"
 								className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-base font-bold text-white transition hover:bg-slate-800"
 							>
-								계좌 연동하기
+								로그인하기
 							</Link>
 						</div>
 					)}

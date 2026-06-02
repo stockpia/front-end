@@ -1,4 +1,5 @@
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import KisStatusBanner from "@/components/KisStatusBanner";
 import { useAveragingCalculator } from "@/hooks/useAveragingCalculator";
 
 const KRW_NUMBER = new Intl.NumberFormat("ko-KR");
@@ -56,7 +57,6 @@ export default function AveragingCalculator() {
     setBuyPriceInput,
     setBuyQuantityInput,
     setBuyAmountInput,
-    connectAccount,
     resetCalculation,
     runCalculation,
     saveCurrentCalculation,
@@ -67,29 +67,18 @@ export default function AveragingCalculator() {
   return (
     <div className="space-y-6 py-8">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              물타기 계산기
-            </h1>
-          </div>
-          {!accountConnected && (
-            <button
-              type="button"
-              onClick={connectAccount}
-              className="inline-flex items-center rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
-              계좌 연동
-            </button>
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold text-slate-900">물타기 계산기</h1>
       </section>
 
       {!accountConnected && (
-        <section className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-          <p className="text-sm text-slate-600">
-            물타기 계산기는 계좌 연결 후 이용할 수 있어요.
-          </p>
-        </section>
+        <>
+          <KisStatusBanner />
+          <section className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+            <p className="text-sm text-slate-600">
+              물타기 계산기는 KIS 계좌 연동 후 이용할 수 있어요.
+            </p>
+          </section>
+        </>
       )}
 
       {accountConnected && holdingLoading && (
