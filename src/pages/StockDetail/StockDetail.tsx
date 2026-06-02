@@ -286,6 +286,23 @@ function ProfileToneToggle({
 		);
 	}
 
+	// level=3 (위험중립형) 사용자에겐 토글 효과가 없음 — backend default 톤과 동일.
+	// 토글 자체 숨기고 안내문만 노출 → 사용자 혼란 차단.
+	if (profileMeta.level === 3) {
+		return (
+			<div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+				<p className="text-sm font-semibold text-slate-900">
+					내 투자 성향 반영{" "}
+					<span className="text-slate-500">— {profileMeta.name}</span>
+				</p>
+				<p className="mt-0.5 text-xs text-slate-500">
+					위험중립형은 기본 톤과 동일해서 별도 적용할 게 없어요. 다른 성향으로
+					바꾸면 리포트 톤도 변경됩니다.
+				</p>
+			</div>
+		);
+	}
+
 	return (
 		<div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
 			<div className="min-w-0">
