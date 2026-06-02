@@ -1,4 +1,4 @@
-import type { StockChartType } from "@/types/stocks";
+import type { StockChartRange, StockChartType } from "@/types/stocks";
 
 export type PlotlyFigure = {
   data?: unknown[];
@@ -7,6 +7,7 @@ export type PlotlyFigure = {
 
 type NormalizeOptions = {
   chartType?: StockChartType;
+  range?: StockChartRange;
 };
 
 // ─────────────────────────────────────────────
@@ -15,17 +16,17 @@ type NormalizeOptions = {
 
 export default function normalizePlotly(
   figure: PlotlyFigure,
-  { chartType }: NormalizeOptions = {},
+  { chartType, range }: NormalizeOptions = {},
 ): PlotlyFigure {
   switch (chartType) {
     case "candlestick":
-      return normalizeCandlestick(figure);
+      return normalizeCandlestick(figure, range);
     case "technical":
-      return normalizeTechnical(figure);
+      return normalizeTechnical(figure, range);
     case "volume":
       return normalizeVolume(figure);
     case "line":
-      return normalizeLine(figure);
+      return normalizeLine(figure, range);
     default:
       return figure;
   }
@@ -35,12 +36,21 @@ export default function normalizePlotly(
 // 차트 타입별 정규화
 // ─────────────────────────────────────────────
 
-function normalizeCandlestick(figure: PlotlyFigure): PlotlyFigure {
-  return normalizeCandlestickLike(figure, { withExtremes: true });
+function normalizeCandlestick(
+  figure: PlotlyFigure,
+  range?: StockChartRange,
+): PlotlyFigure {
+  return normalizeCandlestickLike(figure, { withExtremes: true, range });
 }
 
-function normalizeTechnical(figure: PlotlyFigure): PlotlyFigure {
-  const normalized = normalizeCandlestickLike(figure, { withExtremes: false });
+function normalizeTechnical(
+  figure: PlotlyFigure,
+  range?: StockChartRange,
+): PlotlyFigure {
+  const normalized = normalizeCandlestickLike(figure, {
+    withExtremes: false,
+    range,
+  });
   const data = normalized.data ?? [];
 
   // RSI trace를 한 번만 탐색
@@ -98,11 +108,19 @@ function normalizeVolume(figure: PlotlyFigure): PlotlyFigure {
   };
 }
 
-function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
+function normalizeLine(
+  figure: PlotlyFigure,
+  range?: StockChartRange,
+): PlotlyFigure {
   const nextLayout = normalizeCandlestickLayout(figure.layout, {
     collapseWeekends: false,
+    range,
   });
-  const nextData = normalizeLineData(figure.data ?? []);
+  const intradayData =
+    range === "1d"
+      ? normalizeIntradayX(figure.data ?? [])
+      : (figure.data ?? []);
+  const nextData = normalizeLineData(intradayData);
   const extremeAnnotations = buildCandlestickExtremes(nextData);
 
   if (extremeAnnotations) {
@@ -122,12 +140,21 @@ function normalizeLine(figure: PlotlyFigure): PlotlyFigure {
 
 function normalizeCandlestickLike(
   figure: PlotlyFigure,
-  { withExtremes }: { withExtremes: boolean },
+  {
+    withExtremes,
+    range,
+  }: { withExtremes: boolean; range?: StockChartRange },
 ): PlotlyFigure {
   const nextLayout = normalizeCandlestickLayout(figure.layout, {
-    collapseWeekends: true,
+    // 1d (당일 분봉) 에는 토/일이 없으니 weekend rangebreak 의미 없음
+    collapseWeekends: range !== "1d",
+    range,
   });
-  const nextData = normalizeCandlestickData(figure.data ?? []);
+  const intradayData =
+    range === "1d"
+      ? normalizeIntradayX(figure.data ?? [])
+      : (figure.data ?? []);
+  const nextData = normalizeCandlestickData(intradayData);
 
   if (withExtremes) {
     const extremeAnnotations = buildCandlestickExtremes(nextData);
@@ -148,7 +175,10 @@ function normalizeCandlestickLike(
 
 function normalizeCandlestickLayout(
   layout: PlotlyFigure["layout"],
-  { collapseWeekends = false }: { collapseWeekends?: boolean } = {},
+  {
+    collapseWeekends = false,
+    range,
+  }: { collapseWeekends?: boolean; range?: StockChartRange } = {},
 ): Record<string, unknown> {
   const nextLayout: Record<string, unknown> = { ...(layout ?? {}) };
   nextLayout.showlegend = false;
@@ -163,7 +193,7 @@ function normalizeCandlestickLayout(
   resolvedXKeys.forEach((key) => {
     nextLayout[key] = normalizeXAxis(
       nextLayout[key] as Record<string, unknown>,
-      { collapseWeekends },
+      { collapseWeekends, range },
     );
   });
 
@@ -211,7 +241,10 @@ function normalizeCandlestickLayout(
 
 function normalizeXAxis(
   axis?: Record<string, unknown>,
-  { collapseWeekends = false }: { collapseWeekends?: boolean } = {},
+  {
+    collapseWeekends = false,
+    range,
+  }: { collapseWeekends?: boolean; range?: StockChartRange } = {},
 ) {
   const { title: _, ...cleaned } = axis ?? {};
 
@@ -228,10 +261,33 @@ function normalizeXAxis(
       size: 10,
       color: "#94a3b8",
     },
-    tickformat: "%-m월\n%Y",
+    tickformat: resolveTickformat(range, cleaned.tickformat),
     automargin: true,
     rangebreaks: nextRangebreaks,
   };
+}
+
+// range 별 x축 라벨 포맷.
+// - 1d (분봉): 시:분 — "14:30"
+// - 1m / 3m: 월/일 — "6/2"
+// - 1y / default: 월 + 연 — "6월\n2026"
+function resolveTickformat(
+  range: StockChartRange | undefined,
+  fallback: unknown,
+) {
+  if (typeof fallback === "string" && fallback.length > 0) {
+    return fallback;
+  }
+  switch (range) {
+    case "1d":
+      return "%H:%M";
+    case "1m":
+    case "3m":
+      return "%-m/%-d";
+    case "1y":
+    default:
+      return "%-m월\n%Y";
+  }
 }
 
 function mergeWeekendRangebreaks(rangebreaks: unknown[]) {
@@ -300,6 +356,69 @@ function buildYAxisTitleAnnotations(
       font: { size: 12, color: "#334155" },
     };
   });
+}
+
+// ─────────────────────────────────────────────
+// 1d 분봉 x축 정규화
+// ─────────────────────────────────────────────
+
+// 백엔드(KIS) 가 1d 차트 x 를 "HH:MM" string 으로 보내면 plotly 가 category axis 로
+// 처리해 30개 라벨이 빽빽이 표시되고 tickformat 도 무시됨.
+// 임의 기준일을 붙여 datetime 으로 만들면 plotly 가 시간 axis 로 인식하고
+// 자동으로 적절한 간격의 tick 만 표시 + "%H:%M" tickformat 적용됨.
+//
+// 또한 KIS API 가 14:00 같은 시각을 두 번 보내는 경우가 있어 마지막을 우선해 dedup.
+const INTRADAY_BASE_DATE = "2000-01-01";
+const HH_MM = /^(\d{1,2}):(\d{2})$/;
+
+function normalizeIntradayX(data: unknown[]): unknown[] {
+  return data.map((trace) => {
+    if (!trace || typeof trace !== "object") return trace;
+    const typed = trace as Record<string, unknown>;
+    const xs = typed.x;
+    if (!Array.isArray(xs)) return trace;
+
+    const allTimeStrings = xs.every(
+      (v) => typeof v === "string" && HH_MM.test(v),
+    );
+    if (!allTimeStrings) return trace;
+
+    return rebuildTraceWithDatetimeX(typed, xs as string[]);
+  });
+}
+
+function rebuildTraceWithDatetimeX(
+  trace: Record<string, unknown>,
+  xs: string[],
+): Record<string, unknown> {
+  const seen = new Map<string, number>();
+  xs.forEach((v, i) => seen.set(toDatetime(v), i));
+
+  const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
+  const next: Record<string, unknown> = { ...trace };
+
+  next.x = keptIndices.map((i) => toDatetime(xs[i]));
+  for (const key of ["open", "high", "low", "close", "y", "marker"]) {
+    const val = trace[key];
+    if (Array.isArray(val)) {
+      next[key] = keptIndices.map((i) => val[i]);
+    } else if (key === "marker" && val && typeof val === "object") {
+      const m = val as Record<string, unknown>;
+      const color = m.color;
+      if (Array.isArray(color)) {
+        next.marker = { ...m, color: keptIndices.map((i) => color[i]) };
+      }
+    }
+  }
+  return next;
+}
+
+function toDatetime(t: string): string {
+  const m = HH_MM.exec(t);
+  if (!m) return t;
+  const hh = m[1].padStart(2, "0");
+  const mm = m[2];
+  return `${INTRADAY_BASE_DATE}T${hh}:${mm}:00`;
 }
 
 // ─────────────────────────────────────────────

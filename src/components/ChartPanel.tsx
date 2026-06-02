@@ -204,6 +204,7 @@ export default function ChartPanel({
 					error={error}
 					plotlyJson={plotlyJson}
 					chartType={type}
+					range={range}
 				/>
 			</div>
 
@@ -393,6 +394,7 @@ type ChartRendererProps = {
 	error: string | null;
 	plotlyJson: unknown | null;
 	chartType: ChartType;
+	range: ChartRange;
 };
 
 function ChartRenderer({
@@ -400,6 +402,7 @@ function ChartRenderer({
 	error,
 	plotlyJson,
 	chartType,
+	range,
 }: ChartRendererProps) {
 	if (loading) {
 		return (
@@ -451,6 +454,7 @@ function ChartRenderer({
 
 	const normalizedPlotly = normalizePlotly(parsedPlotly, {
 		chartType,
+		range,
 	});
 
 	return (
