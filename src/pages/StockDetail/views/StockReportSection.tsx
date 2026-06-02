@@ -16,9 +16,9 @@ export default function StockReportSection({
   report,
 }: StockReportSectionProps) {
   const [openSections, setOpenSections] = useState({
-    keyPoints: false,
-    valuation: false,
-    opinion: true,  // 투자 의견 default 펼침 — 보조 정보 (체크포인트/관점) 포함해서 핵심 콘텐츠
+    keyPoints: true,
+    valuation: true,
+    opinion: true,
   });
 
   const formatNumber = (value?: number) => {
@@ -170,31 +170,37 @@ export default function StockReportSection({
                   <div className="rounded-xl bg-slate-100 px-3 py-2">
                     <div className="text-xs text-slate-500">PER</div>
                     <div className="font-semibold text-slate-900">
-                      {formatMetric(report.sections.valuation.per)}
+                      {formatMetric(report.sections.valuation?.per)}
                     </div>
                   </div>
                   <div className="rounded-xl bg-slate-100 px-3 py-2">
                     <div className="text-xs text-slate-500">PBR</div>
                     <div className="font-semibold text-slate-900">
-                      {formatMetric(report.sections.valuation.pbr)}
+                      {formatMetric(report.sections.valuation?.pbr)}
                     </div>
                   </div>
                   <div className="rounded-xl bg-slate-100 px-3 py-2">
                     <div className="text-xs text-slate-500">ROE</div>
                     <div className="font-semibold text-slate-900">
-                      {formatMetric(report.sections.valuation.roe)}
+                      {formatMetric(report.sections.valuation?.roe)}
                     </div>
                   </div>
                   <div className="rounded-xl bg-slate-100 px-3 py-2">
                     <div className="text-xs text-slate-500">EPS</div>
                     <div className="font-semibold text-slate-900">
-                      {formatMetric(report.sections.valuation.eps)}
+                      {formatMetric(report.sections.valuation?.eps)}
                     </div>
                   </div>
                 </div>
-                <p className="mt-4 text-sm leading-7 text-slate-700">
-                  {report.sections.valuation.interpretation}
-                </p>
+                {report.sections.valuation?.interpretation ? (
+                  <p className="mt-4 text-sm leading-7 text-slate-700">
+                    {report.sections.valuation.interpretation}
+                  </p>
+                ) : (
+                  <p className="mt-4 text-sm leading-7 text-slate-400">
+                    밸류에이션 해석을 불러오지 못했어요.
+                  </p>
+                )}
               </>
             )}
           </article>
