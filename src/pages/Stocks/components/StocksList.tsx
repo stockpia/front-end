@@ -41,7 +41,11 @@ export default function StocksList({
 	return (
 		<div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
 			<div className="flex items-center justify-between">
-				<h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+				{title ? (
+					<h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+				) : (
+					<span />
+				)}
 				{!notice && (
 					<div className="flex items-center gap-2 text-xs font-semibold">
 						{sortOptions.map((option, index) => {

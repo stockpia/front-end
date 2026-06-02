@@ -55,7 +55,7 @@ export default function Stocks() {
 			case "holding":
 				return "보유 종목";
 			default:
-				return "전체 종목";
+				return "";
 		}
 	}, [activeTab]);
 
@@ -256,20 +256,20 @@ export default function Stocks() {
 		};
 	}, [effectiveSelectedStock, stockTickerSocket.ticker]);
 	const realtimeSortedStocks = useMemo(() => {
-		if (!stockTickerSocket.ticker) {
-			return sortedStocks;
-		}
+		const base = stockTickerSocket.ticker
+			? sortedStocks.map((stock) =>
+					stock.ticker === stockTickerSocket.ticker?.symbol
+						? {
+								...stock,
+								current_price: stockTickerSocket.ticker.price,
+								change_rate: stockTickerSocket.ticker.change_rate,
+							}
+						: stock,
+				)
+			: sortedStocks;
 
-		return sortedStocks.map((stock) =>
-			stock.ticker === stockTickerSocket.ticker?.symbol
-				? {
-						...stock,
-						current_price: stockTickerSocket.ticker.price,
-						change_rate: stockTickerSocket.ticker.change_rate,
-					}
-				: stock,
-		);
-	}, [sortedStocks, stockTickerSocket.ticker]);
+		return activeTab === "all" ? base.slice(0, 20) : base;
+	}, [sortedStocks, stockTickerSocket.ticker, activeTab]);
 
 	return (
 		<div className="space-y-8 py-8">
