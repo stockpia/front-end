@@ -29,12 +29,11 @@ const TYPE_OPTIONS = [
 export type ChartType = (typeof TYPE_OPTIONS)[number]["id"];
 
 // 하루(1d) 탭일 때 분봉 간격 옵션 — 정규장 390분 / N분 = 캔들 개수.
-// 10분 (39 캔들) = 모바일 가시성 기본. 1분은 너무 좁고 60분은 너무 적음.
+// 10분 (39 캔들) = 모바일 가시성 기본. 30/60분은 캔들이 너무 굵어 제외.
 const MINUTE_INTERVAL_OPTIONS = [
 	{ id: 1, label: "1분" },
 	{ id: 5, label: "5분" },
 	{ id: 10, label: "10분" },
-	{ id: 30, label: "30분" },
 ] as const;
 
 export type ChartMinuteInterval =
