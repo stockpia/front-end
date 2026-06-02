@@ -18,7 +18,7 @@ export default function StockReportSection({
   const [openSections, setOpenSections] = useState({
     keyPoints: false,
     valuation: false,
-    opinion: false,
+    opinion: true,  // 투자 의견 default 펼침 — 보조 정보 (체크포인트/관점) 포함해서 핵심 콘텐츠
   });
 
   const formatNumber = (value?: number) => {
@@ -242,11 +242,68 @@ export default function StockReportSection({
                     </ul>
                   </div>
                 </div>
+                {report.sections.investment_opinion.checkpoints &&
+                  report.sections.investment_opinion.checkpoints.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-amber-700">
+                        체크포인트
+                      </div>
+                      <div className="mt-2 rounded-xl bg-slate-100 px-3 py-2">
+                        <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700">
+                          {report.sections.investment_opinion.checkpoints.map(
+                            (item) => (
+                              <li key={item}>{item}</li>
+                            ),
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                {report.sections.investment_opinion.perspective && (
+                  <div>
+                    <div className="text-xs font-semibold text-sky-700">
+                      기간별 관점
+                    </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                      <PerspectiveCard
+                        label="단기"
+                        text={
+                          report.sections.investment_opinion.perspective
+                            .short_term
+                        }
+                      />
+                      <PerspectiveCard
+                        label="중기"
+                        text={
+                          report.sections.investment_opinion.perspective
+                            .mid_term
+                        }
+                      />
+                      <PerspectiveCard
+                        label="장기"
+                        text={
+                          report.sections.investment_opinion.perspective
+                            .long_term
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </article>
         </>
       )}
+    </div>
+  );
+}
+
+function PerspectiveCard({ label, text }: { label: string; text?: string }) {
+  if (!text) return null;
+  return (
+    <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm leading-6 text-slate-700">
+      <div className="text-[11px] font-semibold text-slate-500">{label}</div>
+      <p className="mt-1">{text}</p>
     </div>
   );
 }
