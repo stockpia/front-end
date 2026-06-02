@@ -213,6 +213,7 @@ type SquareCheckBoxProps = {
 	label: string;
 	description: string;
 	onChange: (checked: boolean) => void;
+	disabled?: boolean;
 };
 
 function SquareCheckBox({
@@ -220,13 +221,16 @@ function SquareCheckBox({
 	label,
 	description,
 	onChange,
+	disabled = false,
 }: SquareCheckBoxProps) {
 	return (
 		<label
-			className={`flex cursor-pointer items-start justify-between gap-3 rounded-2xl border px-3 py-3 transition sm:gap-4 sm:px-4 ${
-				checked
-					? "border-slate-900 bg-slate-50"
-					: "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+			className={`flex items-start justify-between gap-3 rounded-2xl border px-3 py-3 transition sm:gap-4 sm:px-4 ${
+				disabled
+					? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-50"
+					: checked
+						? "cursor-pointer border-slate-900 bg-slate-50"
+						: "cursor-pointer border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
 			}`}
 		>
 			<span className="min-w-0">
@@ -241,6 +245,7 @@ function SquareCheckBox({
 				<input
 					type="checkbox"
 					checked={checked}
+					disabled={disabled}
 					onChange={(event) => onChange(event.target.checked)}
 					className="sr-only"
 				/>

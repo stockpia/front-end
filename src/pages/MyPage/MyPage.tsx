@@ -284,6 +284,29 @@ export default function MyPage() {
 					icon={<BellRing className="h-5 w-5" />}
 					title="알림 설정"
 				/>
+				{!telegramStatus.linked && !telegramStatusQuery.isLoading && (
+					<div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+						<div className="min-w-0">
+							<p className="text-sm font-semibold text-amber-900">
+								Telegram 연결 후 알림을 받을 수 있어요
+							</p>
+							<p className="mt-0.5 text-xs text-amber-800/80">
+								토글을 켜도 연결이 안 되어 있으면 발송되지 않아요.
+							</p>
+						</div>
+						<button
+							type="button"
+							onClick={() => {
+								document
+									.getElementById("telegram-connect-anchor")
+									?.scrollIntoView({ behavior: "smooth", block: "center" });
+							}}
+							className="shrink-0 rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
+						>
+							연결하러 가기
+						</button>
+					</div>
+				)}
 				<div className="mt-5 grid gap-3">
 					{briefingOptions.map((option) => (
 						<SquareCheckBox
@@ -291,6 +314,7 @@ export default function MyPage() {
 							checked={briefingSettings[option.key]}
 							label={option.label}
 							description={option.description}
+							disabled={!telegramStatus.linked}
 							onChange={(checked) => handleBriefingChange(option.key, checked)}
 						/>
 					))}
@@ -302,7 +326,10 @@ export default function MyPage() {
 				)}
 
 				{/* ── Telegram 섹션 (Deep Link 모델) ── */}
-				<div className="mt-6 border-t border-slate-100 pt-6">
+				<div
+					id="telegram-connect-anchor"
+					className="mt-6 border-t border-slate-100 pt-6"
+				>
 					<div className="flex items-center gap-3">
 						<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
 							<MessageCircle className="h-5 w-5" />
