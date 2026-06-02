@@ -86,28 +86,28 @@ export default function StockReportSection({
             <p className="mt-2 text-sm leading-7 text-slate-700">
               {report.summary.investment_summary}
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
               <div className="rounded-xl bg-slate-100 px-3 py-2">
                 <div className="text-xs text-slate-500">현재가</div>
-                <div className="font-semibold text-slate-900">
+                <div className="font-semibold text-slate-900 break-keep">
                   {formatNumber(report.summary.current_price)}
                 </div>
               </div>
               <div className="rounded-xl bg-slate-100 px-3 py-2">
                 <div className="text-xs text-slate-500">변동률</div>
-                <div className="font-semibold text-slate-900">
+                <div className="font-semibold text-slate-900 break-keep">
                   {report.summary.price_change_pct}%
                 </div>
               </div>
               <div className="rounded-xl bg-slate-100 px-3 py-2">
                 <div className="text-xs text-slate-500">1년 수익률</div>
-                <div className="font-semibold text-slate-900">
+                <div className="font-semibold text-slate-900 break-keep">
                   {report.summary.return_1y}%
                 </div>
               </div>
-              <div className="rounded-xl bg-slate-100 px-3 py-2">
+              <div className="col-span-3 rounded-xl bg-slate-100 px-3 py-2">
                 <div className="text-xs text-slate-500">RSI</div>
-                <div className="font-semibold text-slate-900">
+                <div className="font-semibold text-slate-900 break-keep">
                   {report.summary.rsi}
                 </div>
               </div>
