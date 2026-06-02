@@ -111,28 +111,21 @@ export default function Stocks() {
 		[submittedSearchTerm],
 	);
 
+	// 전체 탭 검색 결과는 가격 매핑 없이 종목명/ticker 만 표시 (StocksList 가
+	// current_price === 0 일 때 '상세 보기 →' 로 렌더). top 20 안의 일부만
+	// 가격 보이고 나머지 0% 인 시각적 비대칭 제거 + 사용자 인식 단순화.
 	const searchedStocks = useMemo<StockItem[]>(() => {
 		if (!normalizedSearchTerm) {
 			return [];
 		}
-
-		return stockSearchSocket.results.map((result) => {
-			const matchedStock = baseDisplayedStocks.find(
-				(stock) => stock.ticker === result.symbol,
-			);
-
-			return {
-				ticker: result.symbol,
-				name: result.name,
-				current_price: matchedStock?.current_price ?? 0,
-				change_rate: matchedStock?.change_rate ?? 0,
-				volume: matchedStock?.volume ?? 0,
-				quantity: matchedStock?.quantity,
-				eval_amount: matchedStock?.eval_amount,
-				profit_rate: matchedStock?.profit_rate,
-			};
-		});
-	}, [baseDisplayedStocks, normalizedSearchTerm, stockSearchSocket.results]);
+		return stockSearchSocket.results.map((result) => ({
+			ticker: result.symbol,
+			name: result.name,
+			current_price: 0,
+			change_rate: 0,
+			volume: 0,
+		}));
+	}, [normalizedSearchTerm, stockSearchSocket.results]);
 
 	// 보유 탭은 검색어 있어도 항상 holdings 베이스 유지 (보유 종목 안에서만 부분 일치).
 	// 전체 탭은 검색어 있으면 websocket 검색 결과를 베이스로.
