@@ -116,6 +116,8 @@ export default function StocksList({
 							{items.map((item) => {
 								const isActive = item.ticker === selectedId;
 								const isPositive = item.change_rate >= 0;
+								// 가격 0 인 row = 검색 결과 (가격 없음). "상세 보기" 만 표시.
+								const hasPriceData = item.current_price > 0;
 								return (
 									<li key={item.ticker}>
 										<button
@@ -134,23 +136,31 @@ export default function StocksList({
 												</p>
 												<p className="text-xs text-slate-400">{item.ticker}</p>
 											</div>
-											<div className="text-right">
-												<p className="text-sm font-semibold text-slate-900">
-													{item.current_price.toLocaleString()}원
-												</p>
-												<p
-													className={
-														"text-xs font-semibold " +
-														(isPositive ? "text-rose-500" : "text-blue-500")
-													}
-												>
-													{isPositive ? "+" : ""}
-													{item.change_rate.toFixed(2)}%
-												</p>
-												<p className="text-[11px] text-slate-400">
-													{metaLabel} {item.volume.toLocaleString()}
-												</p>
-											</div>
+											{hasPriceData ? (
+												<div className="text-right">
+													<p className="text-sm font-semibold text-slate-900">
+														{item.current_price.toLocaleString()}원
+													</p>
+													<p
+														className={
+															"text-xs font-semibold " +
+															(isPositive
+																? "text-rose-500"
+																: "text-blue-500")
+														}
+													>
+														{isPositive ? "+" : ""}
+														{item.change_rate.toFixed(2)}%
+													</p>
+													<p className="text-[11px] text-slate-400">
+														{metaLabel} {item.volume.toLocaleString()}
+													</p>
+												</div>
+											) : (
+												<span className="text-xs font-semibold text-slate-400">
+													상세 보기 →
+												</span>
+											)}
 										</button>
 									</li>
 								);
