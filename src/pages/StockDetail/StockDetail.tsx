@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChartPanel, {
 	type ChartMinuteInterval,
 	type ChartRange,
@@ -11,10 +11,25 @@ import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQuerie
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
 import {
 	getInvestmentProfile,
+	investmentProfileResults,
 	subscribeInvestmentProfile,
 } from "@/lib/investmentProfile";
 import CommunityNewsSection from "@/pages/StockDetail/views/CommunityNewsSection";
 import StockReportSection from "@/pages/StockDetail/views/StockReportSection";
+
+const PROFILE_TONE_TOGGLE_KEY = "stockpia.profile-tone-enabled";
+
+function readProfileToneEnabled(): boolean {
+	if (typeof window === "undefined") return true;
+	const raw = window.localStorage.getItem(PROFILE_TONE_TOGGLE_KEY);
+	// 기본값은 ON (사용자가 명시적으로 끄지 않은 한 성향 반영)
+	return raw !== "0";
+}
+
+function writeProfileToneEnabled(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(PROFILE_TONE_TOGGLE_KEY, enabled ? "1" : "0");
+}
 
 type StockInsightTab = "report" | "news" | "community";
 
@@ -38,6 +53,18 @@ export default function StockDetail() {
 		});
 	}, []);
 
+	// 사용자가 명시적으로 끄면 기본 톤 (level=3) 으로. 켜면 본인 성향 반영.
+	const [profileToneEnabled, setProfileToneEnabled] = useState<boolean>(() =>
+		readProfileToneEnabled(),
+	);
+	const effectiveProfileLevel = profileToneEnabled ? profileLevel : undefined;
+	const profileMeta = useMemo(() => {
+		if (!profileLevel) return null;
+		return (
+			investmentProfileResults.find((p) => p.level === profileLevel) ?? null
+		);
+	}, [profileLevel]);
+
 	const symbolLabel = useMemo(() => {
 		const nameParam = searchParams.get("name");
 		if (nameParam && stockId) {
@@ -56,7 +83,7 @@ export default function StockDetail() {
 	const stockReportQuery = useStockReportQuery({
 		symbol: stockId,
 		enabled: activeInsightTab === "report",
-		profileLevel,
+		profileLevel: effectiveProfileLevel,
 	});
 	const stockTickerSocket = useStockTickerSocket(stockId);
 
@@ -158,12 +185,22 @@ export default function StockDetail() {
 				</div>
 
 				{activeInsightTab === "report" && (
-					<StockReportSection
-						isLoading={stockReportQuery.isLoading}
-						isError={stockReportQuery.isError}
-						errorMessage={stockReportQuery.errorMessage}
-						report={realtimeReport}
-					/>
+					<>
+						<ProfileToneToggle
+							profileMeta={profileMeta}
+							enabled={profileToneEnabled}
+							onToggle={(next) => {
+								setProfileToneEnabled(next);
+								writeProfileToneEnabled(next);
+							}}
+						/>
+						<StockReportSection
+							isLoading={stockReportQuery.isLoading}
+							isError={stockReportQuery.isError}
+							errorMessage={stockReportQuery.errorMessage}
+							report={realtimeReport}
+						/>
+					</>
 				)}
 
 				{activeInsightTab !== "report" && (
@@ -200,6 +237,79 @@ export default function StockDetail() {
 					</div>
 				</section>
 			)}
+		</div>
+	);
+}
+
+type ProfileMeta = (typeof investmentProfileResults)[number];
+
+type ProfileToneToggleProps = {
+	profileMeta: ProfileMeta | null;
+	enabled: boolean;
+	onToggle: (enabled: boolean) => void;
+};
+
+/**
+ * 종목 리포트의 LLM 톤이 본인 투자 성향에 맞춰진다는 걸 사용자가 명시적으로
+ * 인지하고 끄고 켤 수 있도록 하는 토글.
+ *
+ * - 성향 미설정: 설정 페이지로 CTA
+ * - 성향 설정됨: 성향명 + On/Off 토글 (Off 면 백엔드 default 톤=위험중립형)
+ */
+function ProfileToneToggle({
+	profileMeta,
+	enabled,
+	onToggle,
+}: ProfileToneToggleProps) {
+	if (!profileMeta) {
+		return (
+			<div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3">
+				<div className="min-w-0">
+					<p className="text-sm font-semibold text-slate-700">
+						투자 성향이 반영된 리포트
+					</p>
+					<p className="mt-0.5 text-xs text-slate-500">
+						성향을 설정하면 리포트 톤이 내 스타일에 맞춰져요.
+					</p>
+				</div>
+				<Link
+					to="/mypage/investment-profile"
+					className="shrink-0 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+				>
+					설정하기
+				</Link>
+			</div>
+		);
+	}
+
+	return (
+		<div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+			<div className="min-w-0">
+				<p className="text-sm font-semibold text-slate-900">
+					내 투자 성향 반영{" "}
+					<span className="text-slate-500">— {profileMeta.name}</span>
+				</p>
+				<p className="mt-0.5 text-xs text-slate-500">
+					{enabled
+						? "리포트 톤이 내 성향에 맞춰 생성됩니다."
+						: "기본 톤(위험중립형) 으로 생성됩니다."}
+				</p>
+			</div>
+			<button
+				type="button"
+				role="switch"
+				aria-checked={enabled}
+				onClick={() => onToggle(!enabled)}
+				className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+					enabled ? "bg-emerald-500" : "bg-slate-300"
+				}`}
+			>
+				<span
+					className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+						enabled ? "translate-x-5" : "translate-x-0.5"
+					}`}
+				/>
+			</button>
 		</div>
 	);
 }
