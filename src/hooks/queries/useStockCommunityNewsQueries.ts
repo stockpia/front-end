@@ -55,8 +55,12 @@ export function stockNewsQueryKey(symbol?: string) {
 	return ["stock-news", symbol ?? null] as const;
 }
 
-export function stockReportQueryKey(symbol?: string) {
-	return ["stock-report", symbol ?? null] as const;
+export function stockReportQueryKey(
+	symbol?: string,
+	profileLevel?: 1 | 2 | 3 | 4 | 5,
+) {
+	// 투자성향 별로 다른 LLM 응답이라 cache 분리
+	return ["stock-report", symbol ?? null, profileLevel ?? 3] as const;
 }
 
 type UseStockCommunityInfiniteQueryParams = {
@@ -195,16 +199,23 @@ export function useStockNewsInfiniteQuery({
 type UseStockReportQueryParams = {
 	symbol?: string;
 	enabled?: boolean;
+	profileLevel?: 1 | 2 | 3 | 4 | 5;
 };
 
 export function useStockReportQuery({
 	symbol,
 	enabled = true,
+	profileLevel,
 }: UseStockReportQueryParams) {
 	const query = useQuery({
-		queryKey: stockReportQueryKey(symbol),
+		queryKey: stockReportQueryKey(symbol, profileLevel),
 		enabled: Boolean(symbol) && enabled,
-		queryFn: () => fetchStockReport(symbol as string),
+		queryFn: ({ signal }) =>
+			fetchStockReport(
+				symbol as string,
+				{ profile_level: profileLevel },
+				signal,
+			),
 	});
 
 	return {
