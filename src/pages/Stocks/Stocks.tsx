@@ -134,32 +134,38 @@ export default function Stocks() {
 		});
 	}, [baseDisplayedStocks, normalizedSearchTerm, stockSearchSocket.results]);
 
-	const displayedStocks = normalizedSearchTerm
-		? searchedStocks
-		: baseDisplayedStocks;
+	// 보유 탭은 검색어 있어도 항상 holdings 베이스 유지 (보유 종목 안에서만 부분 일치).
+	// 전체 탭은 검색어 있으면 websocket 검색 결과를 베이스로.
+	const displayedStocks = useMemo<StockItem[]>(() => {
+		if (!normalizedSearchTerm) return baseDisplayedStocks;
+		if (activeTab === "holding") return baseDisplayedStocks;
+		return searchedStocks;
+	}, [normalizedSearchTerm, activeTab, baseDisplayedStocks, searchedStocks]);
 
 	const filteredStocks = useMemo<StockItem[]>(() => {
-		if (!normalizedSearchTerm || searchedStocks.length > 0) {
+		if (!normalizedSearchTerm) {
 			return displayedStocks;
 		}
 
-		// 1) 현재 표시 중인 리스트 (top 30 또는 보유 종목) 에서 부분 일치 우선
-		const localMatches = displayedStocks.filter((stock) => {
-			const name = stock.name.toLowerCase();
-			const ticker = stock.ticker.toLowerCase();
-			return (
-				name.includes(normalizedSearchTerm) ||
-				ticker.includes(normalizedSearchTerm)
-			);
-		});
-
-		// 2) 보유 탭이거나 로컬 매치가 충분히 있으면 그대로 사용
-		if (activeTab === "holding" || localMatches.length > 0) {
-			return localMatches;
+		// 보유 탭 검색 — holdings 안에서만 부분 일치 (이름/ticker)
+		if (activeTab === "holding") {
+			return displayedStocks.filter((stock) => {
+				const name = stock.name.toLowerCase();
+				const ticker = stock.ticker.toLowerCase();
+				return (
+					name.includes(normalizedSearchTerm) ||
+					ticker.includes(normalizedSearchTerm)
+				);
+			});
 		}
 
-		// 3) 전체 종목 탭에서 로컬 매치 없을 땐 백엔드 검색 결과 사용
-		//    검색 결과는 가격/거래량 정보가 없어 0 으로 채움 (상세 페이지에서 fetch).
+		// 전체 탭 검색 — websocket 결과가 있으면 그대로 사용 (가격은 base 에서 매핑)
+		if (searchedStocks.length > 0) {
+			return displayedStocks;
+		}
+
+		// 폴백: 백엔드 REST 검색 (전체 KOSPI/KOSDAQ).
+		// 가격/등락률 정보가 없어 0 — StocksList 에서 0 가격 row 는 "상세 보기" 로 표시.
 		return stocksSearchQuery.stocks.map((item) => ({
 			ticker: item.ticker,
 			name: item.name,
