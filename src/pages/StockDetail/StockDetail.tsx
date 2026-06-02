@@ -65,14 +65,6 @@ export default function StockDetail() {
 		);
 	}, [profileLevel]);
 
-	const symbolLabel = useMemo(() => {
-		const nameParam = searchParams.get("name");
-		if (nameParam && stockId) {
-			return `${decodeURIComponent(nameParam)} (${stockId})`;
-		}
-		return stockId ? stockId : "선택된 종목";
-	}, [searchParams, stockId]);
-
 	const isHolding = true;
 	const chartQuery = useStockChartQuery({
 		symbol: stockId,
@@ -85,6 +77,18 @@ export default function StockDetail() {
 		enabled: activeInsightTab === "report",
 		profileLevel: effectiveProfileLevel,
 	});
+
+	// URL ?name= 없을 땐 리포트 응답의 company_name 으로 보강 (텔레그램 deep link 케이스).
+	const symbolLabel = useMemo(() => {
+		const nameParam = searchParams.get("name");
+		const resolvedName = nameParam
+			? decodeURIComponent(nameParam)
+			: stockReportQuery.report?.company_name;
+		if (resolvedName && stockId) {
+			return `${resolvedName} (${stockId})`;
+		}
+		return stockId ? stockId : "선택된 종목";
+	}, [searchParams, stockId, stockReportQuery.report?.company_name]);
 	const stockTickerSocket = useStockTickerSocket(stockId);
 
 	const report = stockReportQuery.report;
