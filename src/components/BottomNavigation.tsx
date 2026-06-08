@@ -21,9 +21,7 @@ const navItems = [
 		label: "종목",
 		path: "/stocks",
 		match: (pathname: string) =>
-			pathname === "/stocks" ||
-			pathname.startsWith("/stocks/") ||
-			pathname.startsWith("/calculator/"),
+			pathname === "/stocks" || pathname.startsWith("/stocks/"),
 		icon: LineChart,
 	},
 	{

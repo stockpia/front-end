@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import ChartPanel, {
 	type ChartMinuteInterval,
 	type ChartRange,
@@ -34,7 +34,6 @@ function writeProfileToneEnabled(enabled: boolean) {
 type StockInsightTab = "report" | "news" | "community";
 
 export default function StockDetail() {
-	const navigate = useNavigate();
 	const { stockId } = useParams();
 	const [searchParams] = useSearchParams();
 	const [range, setRange] = useState<ChartRange>("1d");
@@ -65,7 +64,6 @@ export default function StockDetail() {
 		);
 	}, [profileLevel]);
 
-	const isHolding = true;
 	const chartQuery = useStockChartQuery({
 		symbol: stockId,
 		range,
@@ -218,29 +216,6 @@ export default function StockDetail() {
 					</div>
 				)}
 			</section>
-
-			{isHolding && (
-				<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.6)]">
-					<div className="flex flex-wrap items-center justify-between gap-3">
-						<h3 className="text-lg font-semibold text-slate-900">
-							물타기 계산기
-						</h3>
-						<button
-							type="button"
-							onClick={() =>
-								navigate(
-									`/calculator/${stockId ?? ""}?name=${encodeURIComponent(
-										searchParams.get("name") ?? "",
-									)}`,
-								)
-							}
-							className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
-						>
-							계산기 열기
-						</button>
-					</div>
-				</section>
-			)}
 		</div>
 	);
 }

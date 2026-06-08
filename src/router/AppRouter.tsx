@@ -1,6 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
-import AveragingCalculator from "@/pages/AveragingCalculator/AveragingCalculator";
 import Home from "@/pages/Home/Home";
 import InvestmentProfile from "@/pages/InvestmentProfile/InvestmentProfile";
 import Login from "@/pages/Login/Login";
@@ -32,12 +31,6 @@ export default function AppRouter() {
 					<Route
 						path="/mypage/investment-profile"
 						element={<InvestmentProfile />}
-					/>
-
-					{/* 4. 물타기 계산기 */}
-					<Route
-						path="/calculator/:stockId"
-						element={<AveragingCalculator />}
 					/>
 				</Routes>
 			</RootLayout>
