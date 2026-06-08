@@ -8,6 +8,7 @@ import ChartPanel, {
 import StockTickerSummary from "@/components/StockTickerSummary";
 import { useStockChartQuery } from "@/hooks/queries/useStockChartQuery";
 import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
+import { useStocksSearchQuery } from "@/hooks/queries/useStocksSearchQuery";
 import { useStockTickerSocket } from "@/hooks/useStockTickerSocket";
 import {
 	getInvestmentProfile,
@@ -76,17 +77,32 @@ export default function StockDetail() {
 		profileLevel: effectiveProfileLevel,
 	});
 
-	// URL ?name= 없을 땐 리포트 응답의 company_name 으로 보강 (텔레그램 deep link 케이스).
+	// 텔레그램 deep link 등 URL ?name= 없는 진입에 대비:
+	// 1) URL nameParam 우선
+	// 2) 빠른 종목 검색 lookup (1h 캐시, ~수백 ms)
+	// 3) 리포트 응답 company_name (보통 10-15초)
+	const nameParam = searchParams.get("name");
+	const shouldLookupName = !nameParam;
+	const nameLookupQuery = useStocksSearchQuery({
+		query: shouldLookupName && stockId ? stockId : "",
+		limit: 1,
+		enabled: shouldLookupName && Boolean(stockId),
+	});
 	const symbolLabel = useMemo(() => {
-		const nameParam = searchParams.get("name");
-		const resolvedName = nameParam
-			? decodeURIComponent(nameParam)
-			: stockReportQuery.report?.company_name;
+		const resolvedName =
+			(nameParam && decodeURIComponent(nameParam)) ||
+			nameLookupQuery.stocks[0]?.name ||
+			stockReportQuery.report?.company_name;
 		if (resolvedName && stockId) {
 			return `${resolvedName} (${stockId})`;
 		}
 		return stockId ? stockId : "선택된 종목";
-	}, [searchParams, stockId, stockReportQuery.report?.company_name]);
+	}, [
+		nameParam,
+		stockId,
+		nameLookupQuery.stocks,
+		stockReportQuery.report?.company_name,
+	]);
 	const stockTickerSocket = useStockTickerSocket(stockId);
 
 	const report = stockReportQuery.report;
