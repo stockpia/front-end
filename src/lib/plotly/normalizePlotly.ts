@@ -456,18 +456,39 @@ function normalizeIntradayX(data: unknown[]): IntradayResult {
     const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
 
     // 첫 trace 에서 tickvals/ticktext + range 계산.
-    // 정규장 매시간 정각 (09:00, 10:00, ..., 15:00) 만 라벨.
+    // 데이터 범위 + 양쪽 10% padding (min 5분) — 캔들이 화면을 적절히 채우면서
+    // 정규장 위치는 유지 (1분봉=많은 캔들=얇게, 5/10분봉=적은 캔들=적당 폭).
     if (!ticks) {
+      const firstMin = minutesFromOpen(xsStr[keptIndices[0]]);
+      const lastMin = minutesFromOpen(
+        xsStr[keptIndices[keptIndices.length - 1]],
+      );
+      const padding = Math.max(5, Math.round((lastMin - firstMin) * 0.1));
+      const rangeStart = Math.max(0, firstMin - padding);
+      const rangeEnd = Math.min(MARKET_TOTAL_MINUTES, lastMin + padding);
+
+      // range 안의 매시간 정각만 라벨 (예: 14:00, 15:00)
       const tickvals: number[] = [];
       const ticktext: string[] = [];
       for (let h = MARKET_OPEN_HOUR; h <= 15; h++) {
-        tickvals.push((h - MARKET_OPEN_HOUR) * 60);
-        ticktext.push(`${h.toString().padStart(2, "0")}:00`);
+        const idx = (h - MARKET_OPEN_HOUR) * 60;
+        if (idx >= rangeStart && idx <= rangeEnd) {
+          tickvals.push(idx);
+          ticktext.push(`${h.toString().padStart(2, "0")}:00`);
+        }
+      }
+      // 정각이 range 안에 하나도 없으면 데이터 첫/마지막 시각을 라벨로 fallback
+      if (tickvals.length === 0) {
+        tickvals.push(firstMin, lastMin);
+        ticktext.push(
+          xsStr[keptIndices[0]],
+          xsStr[keptIndices[keptIndices.length - 1]],
+        );
       }
       ticks = {
         tickvals,
         ticktext,
-        range: [0, MARKET_TOTAL_MINUTES],
+        range: [rangeStart, rangeEnd],
       };
     }
 
