@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChartPanel, {
-	type ChartMinuteInterval,
 	type ChartRange,
 	type ChartType,
 } from "@/components/ChartPanel";
@@ -41,7 +40,6 @@ export default function Stocks() {
 		null,
 	);
 	const [range, setRange] = useState<ChartRange>("1d");
-	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(1);
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
@@ -240,7 +238,6 @@ export default function Stocks() {
 		symbol: selectedSymbol,
 		range,
 		type: chartType,
-		interval: range === "1d" ? minuteInterval : undefined,
 	});
 	const stockTickerSocket = useStockTickerSocket(selectedSymbol);
 	const realtimeSelectedStock = useMemo(() => {
@@ -339,8 +336,6 @@ export default function Stocks() {
 					onRangeChange={setRange}
 					type={chartType}
 					onTypeChange={setChartType}
-					minuteInterval={minuteInterval}
-					onMinuteIntervalChange={setMinuteInterval}
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}
@@ -362,8 +357,6 @@ export default function Stocks() {
 					onRangeChange={setRange}
 					type={chartType}
 					onTypeChange={setChartType}
-					minuteInterval={minuteInterval}
-					onMinuteIntervalChange={setMinuteInterval}
 					loading={Boolean(selectedSymbol) && chartQuery.isLoading}
 					error={chartQuery.errorMessage}
 					plotlyJson={chartQuery.plotlyJson}

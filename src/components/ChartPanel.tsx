@@ -28,17 +28,6 @@ const TYPE_OPTIONS = [
 
 export type ChartType = (typeof TYPE_OPTIONS)[number]["id"];
 
-// 하루(1d) 탭일 때 분봉 간격 옵션 — 정규장 390분 / N분 = 캔들 개수.
-// 10분 (39 캔들) = 모바일 가시성 기본. 30/60분은 캔들이 너무 굵어 제외.
-const MINUTE_INTERVAL_OPTIONS = [
-	{ id: 1, label: "1분" },
-	{ id: 5, label: "5분" },
-	{ id: 10, label: "10분" },
-] as const;
-
-export type ChartMinuteInterval =
-	(typeof MINUTE_INTERVAL_OPTIONS)[number]["id"];
-
 const RANGE_OPTIONS_BY_TYPE: Record<ChartType, readonly (typeof RANGE_OPTIONS)[number][]> =
 	{
 		candlestick: RANGE_OPTIONS,
@@ -90,8 +79,6 @@ export type ChartPanelProps = {
 	onRangeChange: (range: ChartRange) => void;
 	type: ChartType;
 	onTypeChange: (type: ChartType) => void;
-	minuteInterval?: ChartMinuteInterval;
-	onMinuteIntervalChange?: (interval: ChartMinuteInterval) => void;
 	marketStatus?: "open" | "closed";
 	loading?: boolean;
 	error?: string | null;
@@ -105,8 +92,6 @@ export default function ChartPanel({
 	onRangeChange,
 	type,
 	onTypeChange,
-	minuteInterval,
-	onMinuteIntervalChange,
 	marketStatus,
 	loading = false,
 	error = null,
@@ -171,30 +156,6 @@ export default function ChartPanel({
 						options={availableRangeOptions}
 					/>
 				</div>
-				{range === "1d" && onMinuteIntervalChange && (
-					<div className="flex items-center gap-2">
-						<span className="text-xs text-slate-500">분봉</span>
-						<div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-							{MINUTE_INTERVAL_OPTIONS.map((opt) => {
-								const active = (minuteInterval ?? 1) === opt.id;
-								return (
-									<button
-										key={opt.id}
-										type="button"
-										onClick={() => onMinuteIntervalChange(opt.id)}
-										className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-											active
-												? "bg-white text-slate-900 shadow-sm"
-												: "text-slate-500 hover:text-slate-900"
-										}`}
-									>
-										{opt.label}
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				)}
 				<ChartTypeGuide content={chartTypeContent} />
 			</header>
 
@@ -476,7 +437,7 @@ function ChartRenderer({
 						hovermode: "x unified",
 						// 1d 분봉은 좌측 드래그로 과거 데이터 보기 (토스/네이버 패턴).
 						// 다른 range 는 데이터 양 적어 드래그 불필요.
-						dragmode: range === "1d" ? "pan" : false,
+						dragmode: false,
 						margin: {
 							...((normalizedPlotly.layout?.margin ?? {}) as Record<
 								string,
@@ -487,7 +448,7 @@ function ChartRenderer({
 					config={{
 						responsive: true,
 						displayModeBar: false,
-						scrollZoom: range === "1d",
+						scrollZoom: false,
 					}}
 					useResizeHandler
 					style={{ width: "100%" }}
