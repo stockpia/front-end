@@ -112,15 +112,19 @@ function normalizeLine(
   figure: PlotlyFigure,
   range?: StockChartRange,
 ): PlotlyFigure {
+  let intradayTicks: IntradayTicks | null = null;
+  let dataAfterIntraday: unknown[] = figure.data ?? [];
+  if (range === "1d") {
+    const result = normalizeIntradayX(figure.data ?? []);
+    dataAfterIntraday = result.data;
+    intradayTicks = result.ticks;
+  }
   const nextLayout = normalizeCandlestickLayout(figure.layout, {
     collapseWeekends: false,
     range,
+    intradayTicks,
   });
-  const intradayData =
-    range === "1d"
-      ? normalizeIntradayX(figure.data ?? [])
-      : (figure.data ?? []);
-  const nextData = normalizeLineData(intradayData);
+  const nextData = normalizeLineData(dataAfterIntraday);
   const extremeAnnotations = buildCandlestickExtremes(nextData);
 
   if (extremeAnnotations) {
@@ -145,16 +149,20 @@ function normalizeCandlestickLike(
     range,
   }: { withExtremes: boolean; range?: StockChartRange },
 ): PlotlyFigure {
+  let intradayTicks: IntradayTicks | null = null;
+  let dataAfterIntraday: unknown[] = figure.data ?? [];
+  if (range === "1d") {
+    const result = normalizeIntradayX(figure.data ?? []);
+    dataAfterIntraday = result.data;
+    intradayTicks = result.ticks;
+  }
   const nextLayout = normalizeCandlestickLayout(figure.layout, {
     // 1d (당일 분봉) 에는 토/일이 없으니 weekend rangebreak 의미 없음
     collapseWeekends: range !== "1d",
     range,
+    intradayTicks,
   });
-  const intradayData =
-    range === "1d"
-      ? normalizeIntradayX(figure.data ?? [])
-      : (figure.data ?? []);
-  const nextData = normalizeCandlestickData(intradayData);
+  const nextData = normalizeCandlestickData(dataAfterIntraday);
 
   if (withExtremes) {
     const extremeAnnotations = buildCandlestickExtremes(nextData);
@@ -178,7 +186,12 @@ function normalizeCandlestickLayout(
   {
     collapseWeekends = false,
     range,
-  }: { collapseWeekends?: boolean; range?: StockChartRange } = {},
+    intradayTicks = null,
+  }: {
+    collapseWeekends?: boolean;
+    range?: StockChartRange;
+    intradayTicks?: IntradayTicks | null;
+  } = {},
 ): Record<string, unknown> {
   const nextLayout: Record<string, unknown> = { ...(layout ?? {}) };
   nextLayout.showlegend = false;
@@ -193,7 +206,7 @@ function normalizeCandlestickLayout(
   resolvedXKeys.forEach((key) => {
     nextLayout[key] = normalizeXAxis(
       nextLayout[key] as Record<string, unknown>,
-      { collapseWeekends, range },
+      { collapseWeekends, range, intradayTicks },
     );
   });
 
@@ -244,7 +257,12 @@ function normalizeXAxis(
   {
     collapseWeekends = false,
     range,
-  }: { collapseWeekends?: boolean; range?: StockChartRange } = {},
+    intradayTicks = null,
+  }: {
+    collapseWeekends?: boolean;
+    range?: StockChartRange;
+    intradayTicks?: IntradayTicks | null;
+  } = {},
 ) {
   const { title: _, ...cleaned } = axis ?? {};
 
@@ -252,6 +270,22 @@ function normalizeXAxis(
   const nextRangebreaks = collapseWeekends
     ? mergeWeekendRangebreaks(existingRangebreaks)
     : existingRangebreaks;
+
+  // 1d 분봉 차트: x 가 인덱스라 tickvals/ticktext 명시로 시각 라벨 매핑.
+  // 인덱스 단위 = 1 → plotly 가 캔들 폭 결정 시 인접 캔들 간격 1 기준 → 균일한 얇은 폭.
+  if (intradayTicks) {
+    return {
+      ...cleaned,
+      showticklabels: true,
+      ticks: "",
+      tickfont: { size: 10, color: "#94a3b8" },
+      tickmode: "array",
+      tickvals: intradayTicks.tickvals,
+      ticktext: intradayTicks.ticktext,
+      automargin: true,
+      rangebreaks: nextRangebreaks,
+    };
+  }
 
   return {
     ...cleaned,
@@ -364,15 +398,28 @@ function buildYAxisTitleAnnotations(
 
 // 백엔드(KIS) 가 1d 차트 x 를 "HH:MM" string 으로 보내면 plotly 가 category axis 로
 // 처리해 30개 라벨이 빽빽이 표시되고 tickformat 도 무시됨.
-// 임의 기준일을 붙여 datetime 으로 만들면 plotly 가 시간 axis 로 인식하고
-// 자동으로 적절한 간격의 tick 만 표시 + "%H:%M" tickformat 적용됨.
+//
+// datetime 으로 변환하면 plotly 가 데이터 간격 기준으로 캔들 폭 자동 결정 —
+// 5/10분봉이 1분봉보다 굵게 표시됨 (5분/10분 간격 차이).
+//
+// 대신 *인덱스* (0, 1, 2, ...) 로 변환 → 인접 캔들 간격이 1로 균일해서
+// 1/5/10분봉 모두 동일한 얇은 폭으로 그려짐. 실제 시각은 tickvals/ticktext 로
+// 매시간 정각만 라벨 표시.
 //
 // 또한 KIS API 가 14:00 같은 시각을 두 번 보내는 경우가 있어 마지막을 우선해 dedup.
-const INTRADAY_BASE_DATE = "2000-01-01";
 const HH_MM = /^(\d{1,2}):(\d{2})$/;
 
-function normalizeIntradayX(data: unknown[]): unknown[] {
-  return data.map((trace) => {
+type IntradayTicks = { tickvals: number[]; ticktext: string[] };
+
+type IntradayResult = {
+  data: unknown[];
+  ticks: IntradayTicks | null;
+};
+
+function normalizeIntradayX(data: unknown[]): IntradayResult {
+  let ticks: IntradayTicks | null = null;
+
+  const nextData = data.map((trace) => {
     if (!trace || typeof trace !== "object") return trace;
     const typed = trace as Record<string, unknown>;
     const xs = typed.x;
@@ -383,21 +430,43 @@ function normalizeIntradayX(data: unknown[]): unknown[] {
     );
     if (!allTimeStrings) return trace;
 
-    return rebuildTraceWithDatetimeX(typed, xs as string[]);
+    const xsStr = xs as string[];
+
+    // dedup by HH:MM (KIS 중복 케이스), 마지막을 우선
+    const seen = new Map<string, number>();
+    xsStr.forEach((v, i) => seen.set(v, i));
+    const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
+    const keptTimes = keptIndices.map((i) => xsStr[i]);
+
+    // 첫 trace 에서만 tickvals/ticktext 계산 (모든 trace 가 동일 시각 배열)
+    if (!ticks) {
+      const tickvals: number[] = [];
+      const ticktext: string[] = [];
+      keptTimes.forEach((t, i) => {
+        const m = HH_MM.exec(t);
+        if (m && m[2] === "00") {
+          tickvals.push(i);
+          ticktext.push(t);
+        }
+      });
+      ticks = { tickvals, ticktext };
+    }
+
+    return rebuildTraceWithIndexX(typed, keptIndices);
   });
+
+  return { data: nextData, ticks };
 }
 
-function rebuildTraceWithDatetimeX(
+function rebuildTraceWithIndexX(
   trace: Record<string, unknown>,
-  xs: string[],
+  keptIndices: number[],
 ): Record<string, unknown> {
-  const seen = new Map<string, number>();
-  xs.forEach((v, i) => seen.set(toDatetime(v), i));
-
-  const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
   const next: Record<string, unknown> = { ...trace };
 
-  next.x = keptIndices.map((i) => toDatetime(xs[i]));
+  // x 를 인덱스로 변환 (0, 1, 2, ...) → 캔들 폭 균일 (1 단위)
+  next.x = keptIndices.map((_, i) => i);
+
   for (const key of ["open", "high", "low", "close", "y", "marker"]) {
     const val = trace[key];
     if (Array.isArray(val)) {
@@ -411,14 +480,6 @@ function rebuildTraceWithDatetimeX(
     }
   }
   return next;
-}
-
-function toDatetime(t: string): string {
-  const m = HH_MM.exec(t);
-  if (!m) return t;
-  const hh = m[1].padStart(2, "0");
-  const mm = m[2];
-  return `${INTRADAY_BASE_DATE}T${hh}:${mm}:00`;
 }
 
 // ─────────────────────────────────────────────
