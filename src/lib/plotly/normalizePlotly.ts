@@ -271,8 +271,8 @@ function normalizeXAxis(
     ? mergeWeekendRangebreaks(existingRangebreaks)
     : existingRangebreaks;
 
-  // 1d 분봉 차트: x 가 인덱스라 tickvals/ticktext 명시로 시각 라벨 매핑.
-  // 인덱스 단위 = 1 → plotly 가 캔들 폭 결정 시 인접 캔들 간격 1 기준 → 균일한 얇은 폭.
+  // 1d 분봉 차트: x = 09:00 부터 분 단위 인덱스, range = [0, 390] (정규장).
+  // 데이터가 적어도 그 안에 작은 위치로 표시 → 캔들 폭이 일정하게 얇음.
   if (intradayTicks) {
     return {
       ...cleaned,
@@ -282,6 +282,7 @@ function normalizeXAxis(
       tickmode: "array",
       tickvals: intradayTicks.tickvals,
       ticktext: intradayTicks.ticktext,
+      range: intradayTicks.range,
       automargin: true,
       rangebreaks: nextRangebreaks,
     };
@@ -409,12 +410,29 @@ function buildYAxisTitleAnnotations(
 // 또한 KIS API 가 14:00 같은 시각을 두 번 보내는 경우가 있어 마지막을 우선해 dedup.
 const HH_MM = /^(\d{1,2}):(\d{2})$/;
 
-type IntradayTicks = { tickvals: number[]; ticktext: string[] };
+// 정규장 09:00-15:30 = 390분. 1분 단위 인덱스로 매핑 + xaxis.range=[0,390]
+// → 데이터가 적어도 그 안에 작은 위치로 표시, 캔들 폭 = 그래프 너비 / 390 으로 균일.
+const MARKET_OPEN_HOUR = 9;
+const MARKET_TOTAL_MINUTES = 390;
+
+type IntradayTicks = {
+  tickvals: number[];
+  ticktext: string[];
+  range: [number, number];
+};
 
 type IntradayResult = {
   data: unknown[];
   ticks: IntradayTicks | null;
 };
+
+function minutesFromOpen(t: string): number {
+  const m = HH_MM.exec(t);
+  if (!m) return 0;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  return Math.max(0, (h - MARKET_OPEN_HOUR) * 60 + min);
+}
 
 function normalizeIntradayX(data: unknown[]): IntradayResult {
   let ticks: IntradayTicks | null = null;
@@ -436,36 +454,39 @@ function normalizeIntradayX(data: unknown[]): IntradayResult {
     const seen = new Map<string, number>();
     xsStr.forEach((v, i) => seen.set(v, i));
     const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
-    const keptTimes = keptIndices.map((i) => xsStr[i]);
 
-    // 첫 trace 에서만 tickvals/ticktext 계산 (모든 trace 가 동일 시각 배열)
+    // 첫 trace 에서 tickvals/ticktext + range 계산.
+    // 정규장 매시간 정각 (09:00, 10:00, ..., 15:00) 만 라벨.
     if (!ticks) {
       const tickvals: number[] = [];
       const ticktext: string[] = [];
-      keptTimes.forEach((t, i) => {
-        const m = HH_MM.exec(t);
-        if (m && m[2] === "00") {
-          tickvals.push(i);
-          ticktext.push(t);
-        }
-      });
-      ticks = { tickvals, ticktext };
+      for (let h = MARKET_OPEN_HOUR; h <= 15; h++) {
+        tickvals.push((h - MARKET_OPEN_HOUR) * 60);
+        ticktext.push(`${h.toString().padStart(2, "0")}:00`);
+      }
+      ticks = {
+        tickvals,
+        ticktext,
+        range: [0, MARKET_TOTAL_MINUTES],
+      };
     }
 
-    return rebuildTraceWithIndexX(typed, keptIndices);
+    return rebuildTraceWithMinuteX(typed, keptIndices, xsStr);
   });
 
   return { data: nextData, ticks };
 }
 
-function rebuildTraceWithIndexX(
+function rebuildTraceWithMinuteX(
   trace: Record<string, unknown>,
   keptIndices: number[],
+  xsStr: string[],
 ): Record<string, unknown> {
   const next: Record<string, unknown> = { ...trace };
 
-  // x 를 인덱스로 변환 (0, 1, 2, ...) → 캔들 폭 균일 (1 단위)
-  next.x = keptIndices.map((_, i) => i);
+  // x = 09:00 부터 분 단위 인덱스. 예: 09:00 → 0, 14:50 → 350.
+  // 모든 분봉이 1분 단위 인덱스 → plotly 가 캔들 폭 1로 그림.
+  next.x = keptIndices.map((i) => minutesFromOpen(xsStr[i]));
 
   for (const key of ["open", "high", "low", "close", "y", "marker"]) {
     const val = trace[key];
