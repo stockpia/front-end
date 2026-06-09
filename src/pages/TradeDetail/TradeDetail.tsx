@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { useTradeDetailQuery } from "@/hooks/queries/useTradeDetailQuery";
 import { useAccountSession } from "@/hooks/useAccountSession";
 import { TRADE_PERIOD_OPTIONS, TRADE_SCOPE_OPTIONS } from "@/mocks/tradeDetail";
@@ -113,6 +114,20 @@ export default function TradeDetail() {
 					거래내역 상세 리포트
 				</h1>
 			</header>
+
+			{isSignedIn && isLoading && (
+				<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
+					<div className="flex flex-col items-center justify-center gap-3 py-8">
+						<LoadingSpinner size="md" />
+						<p className="text-sm font-semibold text-slate-700">
+							리포트를 불러오는 중이에요...
+						</p>
+						<p className="text-xs text-slate-500">
+							거래 내역 분석에 5~10초 정도 걸려요. 잠시만 기다려 주세요.
+						</p>
+					</div>
+				</section>
+			)}
 
 			{isSignedIn && hasNoTradesInPeriod && !isLoading && (
 				<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.5)]">
