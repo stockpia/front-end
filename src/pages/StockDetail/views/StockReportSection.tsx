@@ -82,10 +82,12 @@ function formatMetricValue(key: MetricKey, value?: number): string {
   return value.toLocaleString("ko-KR");
 }
 
+// 수익률/변동률은 사용자 직관 우선 — 양수=긍정(초록), 음수=부정(빨강).
+// 한국 시장 컨벤션 (양수=빨강) 보다 손익 의미가 사용자에게 더 직관적.
 function changeRateTone(value?: number): Tone {
   if (typeof value !== "number" || Number.isNaN(value)) return "muted";
-  if (value > 0) return "negative"; // 한국 시장 컨벤션: 상승=빨강
-  if (value < 0) return "positive"; // 하락=파랑/초록 → 여기선 emerald
+  if (value > 0) return "positive";
+  if (value < 0) return "negative";
   return "neutral";
 }
 
@@ -150,7 +152,7 @@ export default function StockReportSection({
             <p className="mt-2 text-sm leading-7 text-slate-700">
               {report.summary.investment_summary}
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
               <SummaryCard
                 label="현재가"
                 value={
@@ -161,7 +163,7 @@ export default function StockReportSection({
                 tone="neutral"
               />
               <SummaryCard
-                label="당일 변동률"
+                label="변동률"
                 value={
                   typeof report.summary.price_change_pct === "number"
                     ? `${report.summary.price_change_pct >= 0 ? "+" : ""}${report.summary.price_change_pct.toFixed(2)}%`
@@ -178,7 +180,11 @@ export default function StockReportSection({
                 }
                 tone={changeRateTone(report.summary.return_1y)}
               />
-              <SummaryCard label="RSI" value={report.summary.rsi} tone="neutral" />
+              <SummaryCard
+                label="RSI"
+                value={report.summary.rsi}
+                tone="neutral"
+              />
             </div>
           </article>
 
@@ -235,7 +241,7 @@ export default function StockReportSection({
             </button>
             {openSections.valuation && (
               <>
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
                   {(["per", "pbr", "roe", "eps"] as const).map((k) => (
                     <ValuationCard
                       key={k}
@@ -349,10 +355,12 @@ function SummaryCard({
   tone: Tone;
 }) {
   return (
-    <div className={`rounded-xl ${TONE_BG[tone]} px-3 py-2`}>
-      <div className="text-xs text-slate-500">{label}</div>
+    <div className={`rounded-xl ${TONE_BG[tone]} px-3 py-2.5`}>
+      <div className="text-[11px] font-medium text-slate-500 whitespace-nowrap">
+        {label}
+      </div>
       <div
-        className={`mt-0.5 font-semibold break-keep ${TONE_TEXT[tone]}`}
+        className={`mt-1 text-sm font-bold break-keep whitespace-nowrap ${TONE_TEXT[tone]}`}
       >
         {value ?? "—"}
       </div>
@@ -373,15 +381,19 @@ function ValuationCard({
 
   return (
     <div className={`rounded-xl ${TONE_BG[assessment.tone]} px-3 py-3`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500">{meta.full}</span>
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-xs font-semibold text-slate-600">
+          {meta.full}
+        </span>
         <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${TONE_BADGE[assessment.tone]}`}
+          className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold ${TONE_BADGE[assessment.tone]}`}
         >
           {assessment.label}
         </span>
       </div>
-      <div className={`mt-1 text-base font-bold ${TONE_TEXT[assessment.tone]}`}>
+      <div
+        className={`mt-1.5 text-base font-bold break-keep ${TONE_TEXT[assessment.tone]}`}
+      >
         {display}
       </div>
       <div className="mt-1 text-[10px] leading-4 text-slate-500">
