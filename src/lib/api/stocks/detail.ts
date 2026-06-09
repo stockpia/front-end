@@ -9,7 +9,6 @@ type TradeDetailErrorResponse = {
 export type FetchTradeDetailParams = {
 	user_id?: string;
 	period?: TradePeriod;
-	demo?: boolean;  // true 시 ?demo=1 — 시연용 가상 거래 응답
 };
 
 function toTradeDetailResponse(data: unknown): TradeDetailResponse {
@@ -30,11 +29,9 @@ export async function fetchTradeDetail(
 	params: FetchTradeDetailParams,
 	signal?: AbortSignal,
 ) {
-	const { demo, ...rest } = params;
 	const queryParams: Record<string, string> = {};
-	if (rest.user_id) queryParams.user_id = rest.user_id;
-	if (rest.period) queryParams.period = rest.period;
-	if (demo) queryParams.demo = "1";
+	if (params.user_id) queryParams.user_id = params.user_id;
+	if (params.period) queryParams.period = params.period;
 
 	const { data } = await api.get<unknown>(
 		`/web/stocks/${encodeURIComponent(symbol)}/detail`,
