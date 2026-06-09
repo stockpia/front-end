@@ -1,5 +1,7 @@
 import {
 	ArrowRight,
+	BarChart3,
+	BellRing,
 	Bot,
 	BriefcaseBusiness,
 	FileText,
@@ -10,9 +12,14 @@ import {
 import { Link } from "react-router-dom";
 import { useAccountSession } from "@/hooks/useAccountSession";
 
-// 종목 차트 / 매수·매도 / 주식 AI 알림 은 상단(BottomNavigation) 메뉴와 중복 → 제거.
-// 홈에는 "특정 기능" 안내 카드 3종만 노출.
 const services = [
+	{
+		title: "종목 차트",
+		description: "다양한 차트로 주가 흐름을 한눈에 파악하세요.",
+		icon: BarChart3,
+		path: "/stocks",
+		isPublic: true,
+	},
 	{
 		title: "종목 리포트",
 		description:
@@ -37,6 +44,14 @@ const services = [
 		path: "/trades",
 		isPublic: false,
 	},
+	{
+		title: "주식 AI 알림",
+		description:
+			"매일 아침 투자 전략부터 장 마감 요약까지. Telegram으로 가장 먼저 알려드릴게요.",
+		icon: BellRing,
+		path: "/mypage",
+		isPublic: false,
+	},
 ];
 
 const previewItems = [
@@ -45,10 +60,21 @@ const previewItems = [
 	{ label: "알림", value: "개장 전 전략 도착" },
 ];
 
+const featuredServiceTitles = new Set([
+	"종목 리포트",
+	"뉴스/커뮤니티",
+	"거래 상세 리포트",
+]);
+
 export default function Home() {
 	const accountSession = useAccountSession();
 	const isSignedIn = Boolean(accountSession?.userId);
-	const featuredServices = services;
+	const featuredServices = services.filter((service) =>
+		featuredServiceTitles.has(service.title),
+	);
+	const otherServices = services.filter(
+		(service) => !featuredServiceTitles.has(service.title),
+	);
 
 	return (
 		<div className="min-h-svh bg-white px-1 pb-10 sm:px-0">
@@ -177,6 +203,55 @@ export default function Home() {
 												<Link
 													to={servicePath}
 													className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold text-white transition hover:bg-slate-800"
+												>
+													바로 가기
+													<ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+												</Link>
+											) : (
+												<span className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-100 px-4 py-3 text-xs font-bold text-slate-400">
+													로그인 후 이용 가능
+												</span>
+											)}
+										</div>
+									</div>
+								</article>
+							);
+						})}
+					</div>
+					<div className="mt-3 grid gap-3 sm:grid-cols-2">
+						{otherServices.map((service) => {
+							const Icon = service.icon;
+							const showAction = isSignedIn || service.isPublic;
+							const servicePath =
+								service.path === "/trades"
+									? `/trades/${accountSession?.userId}`
+									: service.path;
+
+							return (
+								<article
+									key={service.title}
+									className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_16px_50px_-42px_rgba(15,23,42,0.7)] transition duration-200 ease-out will-change-transform hover:-translate-y-1 hover:scale-[1.01] hover:border-slate-300 hover:shadow-[0_22px_60px_-42px_rgba(15,23,42,0.85)] active:scale-[0.99]"
+								>
+									<div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-900 via-emerald-500 to-sky-500 opacity-0 transition group-hover:opacity-100" />
+									<div className="flex h-full flex-col">
+										<div className="flex items-start gap-3">
+											<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition duration-200 group-hover:bg-slate-950 group-hover:text-white group-hover:shadow-[0_14px_28px_-20px_rgba(15,23,42,0.9)]">
+												<Icon className="h-6 w-6 transition duration-200 group-hover:scale-110" />
+											</div>
+											<div className="min-w-0">
+												<h3 className="text-base font-black text-slate-950">
+													{service.title}
+												</h3>
+												<p className="mt-1 text-sm leading-6 font-semibold text-slate-500">
+													{service.description}
+												</p>
+											</div>
+										</div>
+										<div className="mt-5 flex min-h-10 items-end">
+											{showAction ? (
+												<Link
+													to={servicePath}
+													className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold text-white transition group-hover:bg-slate-800"
 												>
 													바로 가기
 													<ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
