@@ -112,19 +112,11 @@ function normalizeLine(
   figure: PlotlyFigure,
   range?: StockChartRange,
 ): PlotlyFigure {
-  let intradayTicks: IntradayTicks | null = null;
-  let dataAfterIntraday: unknown[] = figure.data ?? [];
-  if (range === "1d") {
-    const result = normalizeIntradayX(figure.data ?? []);
-    dataAfterIntraday = result.data;
-    intradayTicks = result.ticks;
-  }
   const nextLayout = normalizeCandlestickLayout(figure.layout, {
     collapseWeekends: false,
     range,
-    intradayTicks,
   });
-  const nextData = normalizeLineData(dataAfterIntraday);
+  const nextData = normalizeLineData(figure.data ?? []);
   const extremeAnnotations = buildCandlestickExtremes(nextData);
 
   if (extremeAnnotations) {
@@ -149,20 +141,12 @@ function normalizeCandlestickLike(
     range,
   }: { withExtremes: boolean; range?: StockChartRange },
 ): PlotlyFigure {
-  let intradayTicks: IntradayTicks | null = null;
-  let dataAfterIntraday: unknown[] = figure.data ?? [];
-  if (range === "1d") {
-    const result = normalizeIntradayX(figure.data ?? []);
-    dataAfterIntraday = result.data;
-    intradayTicks = result.ticks;
-  }
   const nextLayout = normalizeCandlestickLayout(figure.layout, {
     // 1d (당일 분봉) 에는 토/일이 없으니 weekend rangebreak 의미 없음
     collapseWeekends: range !== "1d",
     range,
-    intradayTicks,
   });
-  const nextData = normalizeCandlestickData(dataAfterIntraday);
+  const nextData = normalizeCandlestickData(figure.data ?? []);
 
   if (withExtremes) {
     const extremeAnnotations = buildCandlestickExtremes(nextData);
@@ -186,11 +170,9 @@ function normalizeCandlestickLayout(
   {
     collapseWeekends = false,
     range,
-    intradayTicks = null,
   }: {
     collapseWeekends?: boolean;
     range?: StockChartRange;
-    intradayTicks?: IntradayTicks | null;
   } = {},
 ): Record<string, unknown> {
   const nextLayout: Record<string, unknown> = { ...(layout ?? {}) };
@@ -206,7 +188,7 @@ function normalizeCandlestickLayout(
   resolvedXKeys.forEach((key) => {
     nextLayout[key] = normalizeXAxis(
       nextLayout[key] as Record<string, unknown>,
-      { collapseWeekends, range, intradayTicks },
+      { collapseWeekends, range },
     );
   });
 
@@ -257,11 +239,9 @@ function normalizeXAxis(
   {
     collapseWeekends = false,
     range,
-    intradayTicks = null,
   }: {
     collapseWeekends?: boolean;
     range?: StockChartRange;
-    intradayTicks?: IntradayTicks | null;
   } = {},
 ) {
   const { title: _, ...cleaned } = axis ?? {};
@@ -270,23 +250,6 @@ function normalizeXAxis(
   const nextRangebreaks = collapseWeekends
     ? mergeWeekendRangebreaks(existingRangebreaks)
     : existingRangebreaks;
-
-  // 1d 분봉 차트: x = 09:00 부터 분 단위 인덱스, range = [0, 390] (정규장).
-  // 데이터가 적어도 그 안에 작은 위치로 표시 → 캔들 폭이 일정하게 얇음.
-  if (intradayTicks) {
-    return {
-      ...cleaned,
-      showticklabels: true,
-      ticks: "",
-      tickfont: { size: 10, color: "#94a3b8" },
-      tickmode: "array",
-      tickvals: intradayTicks.tickvals,
-      ticktext: intradayTicks.ticktext,
-      range: intradayTicks.range,
-      automargin: true,
-      rangebreaks: nextRangebreaks,
-    };
-  }
 
   return {
     ...cleaned,
@@ -391,138 +354,6 @@ function buildYAxisTitleAnnotations(
       font: { size: 12, color: "#334155" },
     };
   });
-}
-
-// ─────────────────────────────────────────────
-// 1d 분봉 x축 정규화
-// ─────────────────────────────────────────────
-
-// 백엔드(KIS) 가 1d 차트 x 를 "HH:MM" string 으로 보내면 plotly 가 category axis 로
-// 처리해 30개 라벨이 빽빽이 표시되고 tickformat 도 무시됨.
-//
-// datetime 으로 변환하면 plotly 가 데이터 간격 기준으로 캔들 폭 자동 결정 —
-// 5/10분봉이 1분봉보다 굵게 표시됨 (5분/10분 간격 차이).
-//
-// 대신 *인덱스* (0, 1, 2, ...) 로 변환 → 인접 캔들 간격이 1로 균일해서
-// 1/5/10분봉 모두 동일한 얇은 폭으로 그려짐. 실제 시각은 tickvals/ticktext 로
-// 매시간 정각만 라벨 표시.
-//
-// 또한 KIS API 가 14:00 같은 시각을 두 번 보내는 경우가 있어 마지막을 우선해 dedup.
-const HH_MM = /^(\d{1,2}):(\d{2})$/;
-
-// 정규장 09:00-15:30 = 390분. 1분 단위 인덱스로 매핑 + xaxis.range=[0,390]
-// → 데이터가 적어도 그 안에 작은 위치로 표시, 캔들 폭 = 그래프 너비 / 390 으로 균일.
-const MARKET_OPEN_HOUR = 9;
-const MARKET_TOTAL_MINUTES = 390;
-
-type IntradayTicks = {
-  tickvals: number[];
-  ticktext: string[];
-  range: [number, number];
-};
-
-type IntradayResult = {
-  data: unknown[];
-  ticks: IntradayTicks | null;
-};
-
-function minutesFromOpen(t: string): number {
-  const m = HH_MM.exec(t);
-  if (!m) return 0;
-  const h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  return Math.max(0, (h - MARKET_OPEN_HOUR) * 60 + min);
-}
-
-function normalizeIntradayX(data: unknown[]): IntradayResult {
-  let ticks: IntradayTicks | null = null;
-
-  const nextData = data.map((trace) => {
-    if (!trace || typeof trace !== "object") return trace;
-    const typed = trace as Record<string, unknown>;
-    const xs = typed.x;
-    if (!Array.isArray(xs)) return trace;
-
-    const allTimeStrings = xs.every(
-      (v) => typeof v === "string" && HH_MM.test(v),
-    );
-    if (!allTimeStrings) return trace;
-
-    const xsStr = xs as string[];
-
-    // dedup by HH:MM (KIS 중복 케이스), 마지막을 우선
-    const seen = new Map<string, number>();
-    xsStr.forEach((v, i) => seen.set(v, i));
-    const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
-
-    // 첫 trace 에서 tickvals/ticktext + range 계산.
-    // 초기 view = 마지막 3시간 (180분). 1분봉이면 180캔들 (적당히 얇음),
-    // 5분봉 36, 10분봉 18 — 모두 보기 좋음.
-    // 그 이전 데이터는 드래그/스크롤로 09:00 까지 자유 이동 가능.
-    if (!ticks) {
-      const firstMin = minutesFromOpen(xsStr[keptIndices[0]]);
-      const lastMin = minutesFromOpen(
-        xsStr[keptIndices[keptIndices.length - 1]],
-      );
-      const INITIAL_VIEW_MINUTES = 180;
-      const rangeStart = Math.max(firstMin, lastMin - INITIAL_VIEW_MINUTES);
-      const rangeEnd = Math.min(MARKET_TOTAL_MINUTES, lastMin + 1);
-
-      // range 안의 매시간 정각만 라벨 (예: 14:00, 15:00)
-      const tickvals: number[] = [];
-      const ticktext: string[] = [];
-      for (let h = MARKET_OPEN_HOUR; h <= 15; h++) {
-        const idx = (h - MARKET_OPEN_HOUR) * 60;
-        if (idx >= rangeStart && idx <= rangeEnd) {
-          tickvals.push(idx);
-          ticktext.push(`${h.toString().padStart(2, "0")}:00`);
-        }
-      }
-      // 정각이 range 안에 하나도 없으면 데이터 첫/마지막 시각을 라벨로 fallback
-      if (tickvals.length === 0) {
-        tickvals.push(firstMin, lastMin);
-        ticktext.push(
-          xsStr[keptIndices[0]],
-          xsStr[keptIndices[keptIndices.length - 1]],
-        );
-      }
-      ticks = {
-        tickvals,
-        ticktext,
-        range: [rangeStart, rangeEnd],
-      };
-    }
-
-    return rebuildTraceWithMinuteX(typed, keptIndices, xsStr);
-  });
-
-  return { data: nextData, ticks };
-}
-
-function rebuildTraceWithMinuteX(
-  trace: Record<string, unknown>,
-  keptIndices: number[],
-  xsStr: string[],
-): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...trace };
-
-  // x = 09:00 부터 분 단위 인덱스. 예: 09:00 → 0, 14:50 → 350.
-  // 모든 분봉이 1분 단위 인덱스 → plotly 가 캔들 폭 1로 그림.
-  next.x = keptIndices.map((i) => minutesFromOpen(xsStr[i]));
-
-  for (const key of ["open", "high", "low", "close", "y", "marker"]) {
-    const val = trace[key];
-    if (Array.isArray(val)) {
-      next[key] = keptIndices.map((i) => val[i]);
-    } else if (key === "marker" && val && typeof val === "object") {
-      const m = val as Record<string, unknown>;
-      const color = m.color;
-      if (Array.isArray(color)) {
-        next.marker = { ...m, color: keptIndices.map((i) => color[i]) };
-      }
-    }
-  }
-  return next;
 }
 
 // ─────────────────────────────────────────────
