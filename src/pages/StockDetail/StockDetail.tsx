@@ -39,7 +39,7 @@ export default function StockDetail() {
 	const [searchParams] = useSearchParams();
 	const [range, setRange] = useState<ChartRange>("1d");
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
-	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(10);
+	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(1);
 	const [activeInsightTab, setActiveInsightTab] =
 		useState<StockInsightTab>("report");
 

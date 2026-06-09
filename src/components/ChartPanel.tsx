@@ -176,7 +176,7 @@ export default function ChartPanel({
 						<span className="text-xs text-slate-500">분봉</span>
 						<div className="flex gap-1 rounded-xl bg-slate-100 p-1">
 							{MINUTE_INTERVAL_OPTIONS.map((opt) => {
-								const active = (minuteInterval ?? 10) === opt.id;
+								const active = (minuteInterval ?? 1) === opt.id;
 								return (
 									<button
 										key={opt.id}
