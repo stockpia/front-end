@@ -456,15 +456,15 @@ function normalizeIntradayX(data: unknown[]): IntradayResult {
     const keptIndices = Array.from(seen.values()).sort((a, b) => a - b);
 
     // 첫 trace 에서 tickvals/ticktext + range 계산.
-    // 좌측: 데이터 시작 + 작은 padding (캔들 양쪽 여백 확보).
-    // 우측: 데이터 마지막 시각 그대로 (장 마감 후 빈 시간 안 보이게).
+    // 토스/네이버 패턴: 초기 view = 마지막 60분만 표시 (1분봉이면 60캔들 적당 폭).
+    // 사용자가 드래그/스크롤로 과거 데이터 (09:00 까지) 자유롭게 이동 가능.
     if (!ticks) {
       const firstMin = minutesFromOpen(xsStr[keptIndices[0]]);
       const lastMin = minutesFromOpen(
         xsStr[keptIndices[keptIndices.length - 1]],
       );
-      const leftPad = Math.max(3, Math.round((lastMin - firstMin) * 0.03));
-      const rangeStart = Math.max(0, firstMin - leftPad);
+      const INITIAL_VIEW_MINUTES = 60;
+      const rangeStart = Math.max(firstMin, lastMin - INITIAL_VIEW_MINUTES);
       const rangeEnd = Math.min(MARKET_TOTAL_MINUTES, lastMin + 1);
 
       // range 안의 매시간 정각만 라벨 (예: 14:00, 15:00)

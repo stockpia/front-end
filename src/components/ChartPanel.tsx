@@ -474,7 +474,9 @@ function ChartRenderer({
 						...(normalizedPlotly.layout ?? {}),
 						autosize: true,
 						hovermode: "x unified",
-						dragmode: false,
+						// 1d 분봉은 좌측 드래그로 과거 데이터 보기 (토스/네이버 패턴).
+						// 다른 range 는 데이터 양 적어 드래그 불필요.
+						dragmode: range === "1d" ? "pan" : false,
 						margin: {
 							...((normalizedPlotly.layout?.margin ?? {}) as Record<
 								string,
@@ -485,7 +487,7 @@ function ChartRenderer({
 					config={{
 						responsive: true,
 						displayModeBar: false,
-						scrollZoom: false,
+						scrollZoom: range === "1d",
 					}}
 					useResizeHandler
 					style={{ width: "100%" }}
