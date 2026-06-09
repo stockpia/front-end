@@ -9,7 +9,10 @@ import {
 	MousePointerClick,
 	Sparkles,
 } from "lucide-react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useStockReportQuery } from "@/hooks/queries/useStockCommunityNewsQueries";
+import { useStocksListQuery } from "@/hooks/queries/useStocksListQueries";
 import { useAccountSession } from "@/hooks/useAccountSession";
 
 const services = [
@@ -54,12 +57,6 @@ const services = [
 	},
 ];
 
-const previewItems = [
-	{ label: "AI 요약", value: "실적 개선 기대" },
-	{ label: "주요 체크", value: "환율 변동성" },
-	{ label: "알림", value: "개장 전 전략 도착" },
-];
-
 const featuredServiceTitles = new Set([
 	"종목 리포트",
 	"뉴스/커뮤니티",
@@ -75,6 +72,42 @@ export default function Home() {
 	const otherServices = services.filter(
 		(service) => !featuredServiceTitles.has(service.title),
 	);
+
+	// Today M.A.T.E — 상승률 1위 종목의 실 리포트 미리보기
+	const topListQuery = useStocksListQuery({
+		market: "ALL",
+		sort: "change_rate",
+		order: "desc",
+	});
+	const topStock = topListQuery.stocks[0] ?? null;
+	const todayReportQuery = useStockReportQuery({
+		symbol: topStock?.ticker,
+		enabled: Boolean(topStock?.ticker),
+	});
+	const todayReport = todayReportQuery.report;
+	const todayPreviewItems = useMemo(() => {
+		if (!topStock) return [] as { label: string; value: string }[];
+		const items: { label: string; value: string }[] = [
+			{
+				label: "현재가",
+				value: `${topStock.current_price.toLocaleString()}원`,
+			},
+			{
+				label: "변동률",
+				value: `${topStock.change_rate >= 0 ? "+" : ""}${topStock.change_rate.toFixed(2)}%`,
+			},
+		];
+		const per = todayReport?.sections?.valuation?.per;
+		if (typeof per === "number" && per > 0) {
+			items.push({ label: "PER", value: per.toFixed(2) });
+		}
+		return items;
+	}, [topStock, todayReport]);
+	const todaySummary =
+		todayReport?.summary?.investment_summary ??
+		(topStock
+			? "오늘 가장 강하게 오른 종목이에요. 자세한 분석은 카드를 눌러 확인하세요."
+			: "오늘의 종목을 불러오는 중이에요...");
 
 	return (
 		<div className="min-h-svh bg-white px-1 pb-10 sm:px-0">
@@ -126,42 +159,59 @@ export default function Home() {
 						</div>
 					)}
 
-					<div className="mt-12 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_54px_-42px_rgba(15,23,42,0.55)]">
-						<div>
-							<div className="flex items-center justify-between">
-								<div>
-									<p className="text-xs font-bold text-slate-400">
-										Today M.A.T.E
-									</p>
-									<p className="mt-1 text-xl font-black">삼성전자 리포트</p>
+					{topStock ? (
+						<Link
+							to={`/stocks/${topStock.ticker}?name=${encodeURIComponent(topStock.name)}`}
+							className="mt-12 block rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_54px_-42px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_22px_60px_-42px_rgba(15,23,42,0.7)]"
+						>
+							<div>
+								<div className="flex items-center justify-between">
+									<div className="min-w-0">
+										<p className="text-xs font-bold text-slate-400">
+											Today M.A.T.E · 오늘의 상승률 1위
+										</p>
+										<p className="mt-1 truncate text-xl font-black">
+											{topStock.name} 리포트
+										</p>
+									</div>
+									<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+										<Bot className="h-6 w-6" />
+									</div>
 								</div>
+								<div className="mt-5 space-y-3">
+									{todayPreviewItems.map((item) => (
+										<div
+											key={item.label}
+											className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
+										>
+											<span className="text-sm font-semibold text-slate-500">
+												{item.label}
+											</span>
+											<span className="text-sm font-black text-slate-900">
+												{item.value}
+											</span>
+										</div>
+									))}
+								</div>
+								<div className="mt-5 rounded-2xl bg-slate-50 p-4">
+									<p className="text-sm leading-6 font-semibold text-slate-700">
+										{todaySummary}
+									</p>
+								</div>
+							</div>
+						</Link>
+					) : (
+						<div className="mt-12 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_54px_-42px_rgba(15,23,42,0.55)]">
+							<div className="flex items-center gap-3">
 								<div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
 									<Bot className="h-6 w-6" />
 								</div>
-							</div>
-							<div className="mt-5 space-y-3">
-								{previewItems.map((item) => (
-									<div
-										key={item.label}
-										className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
-									>
-										<span className="text-sm font-semibold text-slate-500">
-											{item.label}
-										</span>
-										<span className="text-sm font-black text-slate-900">
-											{item.value}
-										</span>
-									</div>
-								))}
-							</div>
-							<div className="mt-5 rounded-2xl bg-slate-50 p-4">
-								<p className="text-sm leading-6 font-semibold text-slate-700">
-									오늘은 반도체 업황 개선 기대가 커졌어요. 단기 변동성은 있지만,
-									장 마감 후 수급 변화도 함께 확인해 보세요.
+								<p className="text-sm font-semibold text-slate-500">
+									오늘의 종목을 불러오는 중이에요...
 								</p>
 							</div>
 						</div>
-					</div>
+					)}
 				</section>
 
 				<section className="py-14">
