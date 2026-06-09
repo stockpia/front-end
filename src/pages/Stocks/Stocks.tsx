@@ -317,6 +317,7 @@ export default function Stocks() {
 								: STOCK_SORT_OPTIONS
 						}
 						metaLabel={activeTab === "holding" ? "보유량" : "거래량"}
+						rateLabel={activeTab === "holding" ? "수익률" : "당일"}
 						isLoading={isLoading}
 						error={error}
 						notice={notice}

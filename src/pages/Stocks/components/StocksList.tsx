@@ -15,6 +15,11 @@ type StocksListProps = {
 	onSortChange: (sortBy: StockSort) => void;
 	sortOptions: { value: StockSort; label: string }[];
 	metaLabel?: string;
+	/**
+	 * % 컬럼의 의미 — 전체 탭이면 "당일 변동률" (시장 기준),
+	 * 보유 탭이면 "내 수익률" (매수가 기준). 행 라벨로 명시.
+	 */
+	rateLabel?: string;
 	isLoading?: boolean;
 	error?: string | null;
 	emptyLabel?: string;
@@ -34,6 +39,7 @@ export default function StocksList({
 	onSortChange,
 	sortOptions,
 	metaLabel = "거래량",
+	rateLabel = "변동률",
 	isLoading = false,
 	error = null,
 	emptyLabel = "표시할 종목이 없습니다.",
@@ -141,16 +147,18 @@ export default function StocksList({
 													<p className="text-sm font-semibold text-slate-900">
 														{item.current_price.toLocaleString()}원
 													</p>
-													<p
-														className={
-															"text-xs font-semibold " +
-															(isPositive
-																? "text-rose-500"
-																: "text-blue-500")
-														}
-													>
-														{isPositive ? "+" : ""}
-														{item.change_rate.toFixed(2)}%
+													<p className="flex items-center justify-end gap-1 text-xs font-semibold">
+														<span className="text-[10px] font-medium text-slate-400">
+															{rateLabel}
+														</span>
+														<span
+															className={
+																isPositive ? "text-rose-500" : "text-blue-500"
+															}
+														>
+															{isPositive ? "+" : ""}
+															{item.change_rate.toFixed(2)}%
+														</span>
 													</p>
 													<p className="text-[11px] text-slate-400">
 														{metaLabel} {item.volume.toLocaleString()}
