@@ -103,7 +103,10 @@ export default function TradeDetail() {
 	const formatCurrency = (value: number) =>
 		`${value.toLocaleString("ko-KR")}원`;
 
-	const formatRatio = (value: number) => `${value.toFixed(1)}%`;
+	const formatRatio = (value: number | null | undefined) => {
+		if (typeof value !== "number" || Number.isNaN(value)) return "—";
+		return `${value.toFixed(1)}%`;
+	};
 	const hasNoTradesInPeriod =
 		report.period_insufficient && report.summary_metrics.total_trades === 0;
 
@@ -465,10 +468,14 @@ export default function TradeDetail() {
 										}
 										const top = c.top_stock_name ?? c.top_stock;
 										const ratio = c.top_stock_ratio ?? c.concentration_rate;
+										const ratioNum =
+											typeof ratio === "number" && !Number.isNaN(ratio)
+												? ratio
+												: null;
 										const text =
 											c.text ??
-											(top && ratio != null
-												? `전체 거래 중 ${top} 비중은 ${ratio.toFixed(1)}% 입니다.`
+											(top && ratioNum != null
+												? `전체 거래 중 ${top} 비중은 ${ratioNum.toFixed(1)}% 입니다.`
 												: null);
 										return (
 											<article className="rounded-2xl border border-slate-200 p-4">
@@ -485,10 +492,14 @@ export default function TradeDetail() {
 									{(() => {
 										const v = report.volatility_analysis;
 										const rate = v?.volatility_rate ?? v?.avg_volatility;
+										const rateNum =
+											typeof rate === "number" && !Number.isNaN(rate)
+												? rate
+												: null;
 										const text =
 											v?.text ??
-											(rate != null
-												? `손익 변동폭은 ${rate.toFixed(1)}% 입니다.`
+											(rateNum != null
+												? `손익 변동폭은 ${rateNum.toFixed(1)}% 입니다.`
 												: null);
 										if (!text) return null;
 										return (
