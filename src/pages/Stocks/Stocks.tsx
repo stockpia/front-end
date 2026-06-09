@@ -41,7 +41,7 @@ export default function Stocks() {
 		null,
 	);
 	const [range, setRange] = useState<ChartRange>("1d");
-	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(10);
+	const [minuteInterval, setMinuteInterval] = useState<ChartMinuteInterval>(1);
 	const [chartType, setChartType] = useState<ChartType>("candlestick");
 	const [sortBy, setSortBy] = useState<StockSort>("change_rate");
 	const [searchTerm, setSearchTerm] = useState("");
