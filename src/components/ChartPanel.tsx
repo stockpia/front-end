@@ -367,15 +367,21 @@ function ChartRenderer({
 }: ChartRendererProps) {
 	if (loading) {
 		return (
-			<div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
-				<LoadingSpinner label="차트 로딩 중..." />
+			<div className="flex h-72 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50">
+				<LoadingSpinner size="md" />
+				<p className="text-sm font-semibold text-slate-700">
+					차트를 불러오는 중이에요...
+				</p>
+				<p className="text-xs text-slate-500">
+					한국투자증권 데이터를 가져오고 있어요. 잠시만 기다려 주세요.
+				</p>
 			</div>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="flex h-64 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-rose-200 bg-rose-50">
+			<div className="flex h-72 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-rose-200 bg-rose-50">
 				<p className="text-sm font-semibold text-rose-500">
 					차트를 불러오지 못했습니다.
 				</p>
@@ -392,8 +398,14 @@ function ChartRenderer({
 
 	if (!plotlyJson) {
 		return (
-			<div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
-				<p className="text-sm text-slate-400">표시할 데이터가 없습니다.</p>
+			<div className="flex h-72 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50">
+				<p className="text-sm font-semibold text-slate-700">
+					표시할 차트 데이터가 없어요
+				</p>
+				<p className="text-xs text-slate-500">
+					아직 거래 데이터가 부족하거나 장 시작 전일 수 있어요. 잠시 후 다시
+					확인해 주세요.
+				</p>
 			</div>
 		);
 	}
